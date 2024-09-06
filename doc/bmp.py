@@ -1,6 +1,7 @@
 from struct import unpack
 from enum import Enum
 import PIL.Image
+from io import BufferedReader
 
 class BfType(Enum):
     BM = b'BM'  # Windows 3.1x, 95, NT, ...
@@ -18,7 +19,10 @@ class BiCompression(Enum):
     BI_JPEG = 4         # 位图含JPEG图像（仅用于打印机）
     BI_PNG = 5          # 位图含PNG图像（仅用于打印机）
 
-def read_header(f):
+
+# Read
+
+def read_header(f: BufferedReader):
     bfType = f.read(2)                      # 文件类型
     bfSize = unpack('<i', f.read(4))[0]     # 文件大小
     _bfReserverd1 = f.read(2)
@@ -26,7 +30,7 @@ def read_header(f):
     bfOffBits = unpack('<i', f.read(4))[0]  # 从文件头到位图数据部分的偏移量
     return bfType, bfSize, bfOffBits
 
-def read_info(f):
+def read_info(f: BufferedReader):
     biSize = unpack('<i', f.read(4))[0]                         # infomation 部分的字节数
     biWidth = unpack('<i', f.read(4))[0]                        # 图像宽度（像素）
     biHeight = unpack('<i', f.read(4))[0]                       # 图像高度（像素）
@@ -40,7 +44,7 @@ def read_info(f):
     biClrImportant = unpack('<i', f.read(4))[0]                 # 颜色索引数（重要）
     return biSizeImage, biWidth, biHeight
 
-def read_data(f, biWidth, biHeight):
+def read_data(f: BufferedReader, biWidth, biHeight):
     pixels = [0] * biWidth * biHeight
     for row in range(biHeight - 1, -1, -1):
         for col in range(biWidth - 1, -1, -1):
@@ -65,6 +69,9 @@ def read_file(path: str):
             print(f'SizeImage Error: {biSizeImage} % 4 != 0')
         # bitmap data
         return read_data(f, biWidth, biHeight), biWidth, biHeight
+
+
+# Write
 
 if __name__ == '__main__':
     pixels, biWidth, biHeight = read_file(f'./img/suey.bmp')
