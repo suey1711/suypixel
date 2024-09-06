@@ -24,43 +24,51 @@ def read_header(f):
     _bfReserverd1 = f.read(2)
     _bfReserverd2 = f.read(2)
     bfOffBits = unpack('<i', f.read(4))[0]  # 从文件头到位图数据部分的偏移量
-    return (bfType, bfSize, bfOffBits)
+    return bfType, bfSize, bfOffBits
+
+def read_info(f):
+    biSize = unpack('<i', f.read(4))[0]                         # infomation 部分的字节数
+    biWidth = unpack('<i', f.read(4))[0]                        # 图像宽度（像素）
+    biHeight = unpack('<i', f.read(4))[0]                       # 图像高度（像素）
+    biPlanes = unpack('<h', f.read(2))[0]                       # 颜色平面数
+    biBitCount = unpack('<h', f.read(2))[0]                     # 像素位宽
+    biCompression = BiCompression(unpack('<i', f.read(4))[0])   # 压缩类型
+    biSizeImage = unpack('<i', f.read(4))[0]                    # 图像大小（字节）
+    biXPelsPerMeter = unpack('<i', f.read(4))[0]                # 水平分辨率（像素/米）
+    biYPelsPerMeter = unpack('<i', f.read(4))[0]                # 垂直分辨率（像素/米）
+    biClrUsed = unpack('<i', f.read(4))[0]                      # 颜色索引数
+    biClrImportant = unpack('<i', f.read(4))[0]                 # 颜色索引数（重要）
+    return biSizeImage, biWidth, biHeight
+
+def read_data(f, biWidth, biHeight):
+    pixels = [0] * biWidth * biHeight
+    for row in range(biHeight - 1, -1, -1):
+        for col in range(biWidth - 1, -1, -1):
+            b = unpack('<B', f.read(1))[0]
+            g = unpack('<B', f.read(1))[0]
+            r = unpack('<B', f.read(1))[0]
+            pixels[row * biHeight + col] = (r, g, b)
+            # pixels.append((r, g, b))
+        pad_count = biWidth % 4
+        _ = f.read(pad_count)
+    return pixels
 
 def read_file(path: str):
     with open(path, 'rb') as f:
         # file header 14bytes
-        (bfType, bfSize, bfOffBits) = read_header(f)
+        bfType, bfSize, bfOffBits = read_header(f)
         print(BfType(bfType), f'File Size: {bfSize}', f'Data Offset: {bfOffBits}')
         # bitmap infomation 40bytes
-        biSize = unpack('<i', f.read(4))[0]                         # infomation 部分的字节数
-        biWidth = unpack('<i', f.read(4))[0]                        # 图像宽度（像素）
-        biHeight = unpack('<i', f.read(4))[0]                       # 图像高度（像素）
-        biPlanes = unpack('<h', f.read(2))[0]                       # 颜色平面数
-        biBitCount = unpack('<h', f.read(2))[0]                     # 像素位宽
-        biCompression = BiCompression(unpack('<i', f.read(4))[0])   # 压缩类型
-        biSizeImage = unpack('<i', f.read(4))[0]                    # 图像大小（字节）
-        biXPelsPerMeter = unpack('<i', f.read(4))[0]                # 水平分辨率（像素/米）
-        biYPelsPerMeter = unpack('<i', f.read(4))[0]                # 垂直分辨率（像素/米）
-        biClrUsed = unpack('<i', f.read(4))[0]                      # 颜色索引数
-        biClrImportant = unpack('<i', f.read(4))[0]                 # 颜色索引数（重要）
+        biSizeImage, biWidth, biHeight = read_info(f)
         # print(biSize, biWidth, biHeight, biCompression, biBitCount, biSizeImage)
         if biSizeImage % 4 != 0:
             print(f'SizeImage Error: {biSizeImage} % 4 != 0')
         # bitmap data
-        pixels = []
-        for row in range(biHeight):
-            for col in range(biWidth):
-                b = unpack('<B', f.read(1))[0]
-                g = unpack('<B', f.read(1))[0]
-                r = unpack('<B', f.read(1))[0]
-                pixels.append((r, g, b))
-            # pixels.append(line)
-            pad_count = biWidth % 4
-            _ = f.read(pad_count)
-        pixels.reverse()
-        img = PIL.Image.new('RGB', (biWidth, biHeight))
-        img.putdata(pixels)
-        img.show()
+        return read_data(f, biWidth, biHeight), biWidth, biHeight
 
 if __name__ == '__main__':
-    read_file(f'./img/suey.bmp')
+    pixels, biWidth, biHeight = read_file(f'./img/suey.bmp')
+    # draw
+    img = PIL.Image.new('RGB', (biWidth, biHeight))
+    img.putdata(pixels)
+    img.show()
