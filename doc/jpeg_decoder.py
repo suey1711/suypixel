@@ -25,4 +25,4 @@ def read_file(path: str):
     print(len(segments))
 
 if __name__ == '__main__':
-    read_file(f'./img/suey.jpeg')
+    read_file(f'./img/suey.jpg')
