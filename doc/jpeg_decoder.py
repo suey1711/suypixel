@@ -6,7 +6,6 @@ def read_file(path: str):
     segments = []
     segment = []
     flag = False
-    i = 0
     for byte in content:
         if byte == 0xFF:
             flag = True
