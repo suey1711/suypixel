@@ -15,7 +15,7 @@ def read_file(path: str):
         content = f.read()
 
     segments = []
-    segment = [0xFF]
+    segment = []
     flag = False
     for byte in content:
         if byte == 0xFF:
@@ -27,6 +27,11 @@ def read_file(path: str):
                 flag = False
                 if byte == 0x00:
                     segment.append(0xFF)
+                elif byte == 0xD8:
+                    segment = [0xD8]
+                elif byte == 0xD9:
+                    segments.append([0xD9])
+                    break
                 else:
                     segments.append(segment)
                     segment = [byte]
