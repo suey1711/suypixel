@@ -13,7 +13,6 @@
 def read_file(path: str):
     with open(path, 'rb') as f:
         content = f.read()
-
     segments = []
     segment = []
     flag = False
