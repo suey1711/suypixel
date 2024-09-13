@@ -10,34 +10,58 @@
 # APPn	0xFFEn	Application-specific	Exif JPEG使用APP1，JFIF JPEG使用APP0
 # COM	0xFFFE	Comment	注释内容
 # EOI	0xFFD9	End of Image	图像的结束
-def read_file(path: str):
-    with open(path, 'rb') as f:
-        content = f.read()
-    segments = []
-    segment = []
-    flag = False
-    for byte in content:
-        if byte == 0xFF:
-            flag = True
-        else:
-            if flag is False:
-                segment.append(byte)
-            else:
-                flag = False
-                if byte == 0x00:
-                    segment.append(0xFF)
-                elif byte == 0xD8:
-                    segment = [0xD8]
-                elif byte == 0xD9:
-                    segments.append([0xD9])
-                    break
-                else:
-                    segments.append(segment)
-                    segment = [byte]
+class SOI:
+    def __init__(self, segment: bytes) -> None:
+        if segment != [0xD8]:
+            raise ValueError("SOI Read Error")
 
-    for seg in segments:
-        print(hex(seg[0]), len(seg))
-    print(len(segments))
+class EOI:
+    def __init__(self, segment: bytes) -> None:
+        if segment != [0xD9]:
+            raise ValueError("EOI Read Error")
+class Jpeg(SOI, EOI):
+    def _read_segments(content: bytes):
+        segments = []
+        segment = []
+        flag = False
+        for byte in content:
+            if byte == 0xFF:
+                flag = True
+            else:
+                if flag is False:
+                    segment.append(byte)
+                else:
+                    flag = False
+                    if byte == 0x00:
+                        segment.append(0xFF)
+                    elif byte == 0xFF:
+                        continue
+                    elif byte == 0xD8:
+                        segment = [0xD8]
+                    elif byte == 0xD9:
+                        segments.append([0xD9])
+                        break
+                    else:
+                        segments.append(segment)
+                        segment = [byte]
+        return segments
+    def _read_file(path: str):
+        with open(path, 'rb') as f:
+            content = f.read()
+        segments = Jpeg._read_segments(content)
+        return segments
+    def __init__(self, path: str) -> None:
+        segments = Jpeg._read_file(path)
+        # 判断文件完整性
+        SOI.__init__(self, segments[0])
+        EOI.__init__(self, segments[-1])
+        # 读取图片参数
+        # 读取文件数据
+        # for seg in segments:
+        #     print(hex(seg[0]), len(seg))
+        # print(len(segments))
+
 
 if __name__ == '__main__':
-    read_file(f'./img/suey.jpg')
+    jpeg = Jpeg(f'./img/suey.jpg')
+
