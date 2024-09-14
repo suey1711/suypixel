@@ -47,6 +47,9 @@ class SOS:
     'Start of Scan'
     pass
 
+class Frame:
+    pass
+
 class Jpeg(SOI, EOI):
     def _read_segments(content: bytes):
         segments = []
