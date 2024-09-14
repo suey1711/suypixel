@@ -1,24 +1,52 @@
 # 缩写	字节码	名称	注释
-# SOI	0xFFD8	Start of image	文件开头
-# SOF0	0xFFC0	Start of Frame0	Baseline DCT-based JPEG所用的开头
-# SOF2	0xFFC2	Start of Frame2	Progressive DCT-based JPEG
-# DHT	0xFFC4	Define Huffman Tables	指定一个或多个哈夫曼表
-# DQT	0xFFDB	Define Quantization Table	指定量化表
-# DRI	0xFFDD	Define Restart Interval	RST中的marker
-# SOS	0xFFDA	Start of Scan	Scan的开头
-# RSTn	0xFFDn	Restart	DRImarker中插入r个块
-# APPn	0xFFEn	Application-specific	Exif JPEG使用APP1，JFIF JPEG使用APP0
-# COM	0xFFFE	Comment	注释内容
-# EOI	0xFFD9	End of Image	图像的结束
+# SOI	0xFFD8	Start of image 文件开头
+# SOF0	0xFFC0	Start of Frame0 Baseline DCT-based JPEG所用的开头
+# SOF2	0xFFC2	Start of Frame2 Progressive DCT-based JPEG
+# DHT	0xFFC4	Define Huffman Tables 指定一个或多个哈夫曼表
+# DQT	0xFFDB	Define Quantization Table 指定量化表
+# DRI	0xFFDD	Define Restart Interval ST中的marker
+# SOS	0xFFDA	Start of Scan Scan的开头
+# RSTn	0xFFDn	Restart DRImarker中插入r个块
+# APPn	0xFFEn	Application-specific Exif JPEG使用APP1, JFIF JPEG使用APP0
+# COM	0xFFFE	Comment 注释内容
+# EOI	0xFFD9	End of Image 图像的结束
+
 class SOI:
+    'Start of image'
     def __init__(self, segment: bytes) -> None:
         if segment != [0xD8]:
             raise ValueError("SOI Read Error")
 
 class EOI:
+    'End of Image'
     def __init__(self, segment: bytes) -> None:
         if segment != [0xD9]:
             raise ValueError("EOI Read Error")
+
+class SOF0:
+    'Start of Frame0 Baseline DCT-based JPEG'
+    pass
+
+class SOF2:
+    'Start of Frame2 Progressive DCT-based JPEG'
+    pass
+
+class DHT:
+    'Define Huffman Tables'
+    pass
+
+class DQT:
+    'Define Quantization Table'
+    pass
+
+class DRI:
+    'Define Restart Interval ST中的marker'
+    pass
+
+class SOS:
+    'Start of Scan'
+    pass
+
 class Jpeg(SOI, EOI):
     def _read_segments(content: bytes):
         segments = []
