@@ -50,7 +50,7 @@ class SOS:
 class Frame:
     pass
 
-class Jpeg(SOI, EOI):
+class Jpeg(SOI, EOI, SOF0, SOF2, DHT, DQT, DRI):
     def _read_segments(content: bytes):
         segments = []
         segment = []
