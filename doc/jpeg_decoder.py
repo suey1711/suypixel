@@ -132,7 +132,7 @@ class COM:
 class Frame:
     pass
 
-class Jpeg(SOI, EOI, SOF0, SOF2, DHT, DQT, DRI, COM):
+class Jpeg(SOI, APP0, SOF0, DHT, DQT, DRI, EOI):
     def _read_segments(content: bytes):
         segments = []
         segment = []
@@ -155,9 +155,9 @@ class Jpeg(SOI, EOI, SOF0, SOF2, DHT, DQT, DRI, COM):
                         segments.append([0xD9])
                         break
                     # RSTn
-                    elif byte == 0xD0 or 0xD1 or 0xD2 or 0xD3 or 0xD4 or 0xD5 or 0xD6 or 0xD7:
-                        segments.append(segment)
-                        segment = []
+                    # elif byte == 0xD0 or 0xD1 or 0xD2 or 0xD3 or 0xD4 or 0xD5 or 0xD6 or 0xD7:
+                    #     segments.append(segment)
+                    #     segment = []
                     else:
                         segments.append(segment)
                         segment = [byte]
