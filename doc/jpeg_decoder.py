@@ -45,11 +45,26 @@ class SOF2:
 
 class DHT:
     'Define Huffman Tables'
+    # 标记代码｜｜  2 bytes 固定值：0xFFC0
+    # 数据长度｜｜  2 bytes 包含自身但不包含标记代码
+    # 哈夫曼表｜｜  (length - 2) bytes
+    #       表ID和表类型  1 byte
+    #       	高4位：类型，只有两个值可选，0为DC直流，1为AC交流
+    #           低4位：哈夫曼表ID，注意DC表和AC表是分开编码的
+    #       不同位数的码字数量 16 bytes
+    #       编码内容  上述16个不同位数的码字的数量和 bytes
     def __init__(self, segment: bytes) -> None:
         print('DHT Len:', len(segment))
 
 class DQT:
     'Define Quantization Table'
+    # 标记代码｜｜  2 bytes 固定值：0xFFC0
+    # 数据长度｜｜  2 bytes 包含自身但不包含标记代码
+    # 量化表｜｜｜  （length - 2） bytes
+    #       精度和ID  1 byte
+    #               高4位为精度，只有两个可选值：0表示8bits，1表示16bits
+    #               低4位为量化表ID，取值范围为0~3
+    #       表项  64 * (精度 + 1)bytes
     def __init__(self, segment: bytes) -> None:
         print('DQT Len:', len(segment))
 
@@ -104,7 +119,7 @@ class APPn:
     'Application-specific n'
     # 标记代码｜｜  2 bytes 固定值：0xFFE0
     # 数据长度｜｜  2 bytes 包含自身但不包含标记代码
-    # 详细信息｜｜  (length-2) bytes
+    # 详细信息｜｜  (length - 2) bytes
     #       Exif使用APP1来存放图片的metadata
     #       Adobe Photoshop用APP1和APP13两个标记段分别存储了一副图像的副本
     def __init__(self, segment: bytes) -> None:
@@ -153,6 +168,7 @@ class Jpeg(SOI, EOI, SOF0, SOF2, DHT, DQT, DRI):
             elif seg[0] == 0xC2:
                 SOF2.__init__(self, seg)
             elif seg[0] == 0xC4:
+                # 哈夫曼表可以重复出现（一般出现4次）
                 DHT.__init__(self, seg)
             elif seg[0] == 0xDB:
                 DQT.__init__(self, seg)
