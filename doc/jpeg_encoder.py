@@ -1,6 +1,4 @@
 from struct import pack
-from enum import Enum
-import PIL.Image
 from io import BufferedWriter
 
 def write_soi(f: BufferedWriter):
