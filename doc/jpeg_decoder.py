@@ -65,6 +65,8 @@ class DQT:
     #               高4位为精度，只有两个可选值：0表示8bits，1表示16bits
     #               低4位为量化表ID，取值范围为0~3
     #       表项  64 * (精度 + 1)bytes
+    #           8bits  64 * (0 + 1)bytes = 64 bytes
+    #           16bits  64 * (1 + 1)bytes 128 bytes
     def __init__(self, segment: bytes) -> None:
         print('DQT Len:', len(segment))
 
