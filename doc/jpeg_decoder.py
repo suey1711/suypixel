@@ -23,6 +23,37 @@ class EOI:
         if segment != [0xD9]:
             raise ValueError("EOI Read Error")
 
+class APP0:
+    'Application-specific 0'
+    # 标记代码｜｜  2 bytes 固定值：0xFFE0
+    # 数据长度｜｜  2 bytes 包含自身但不包含标记代码
+    # 标识符｜｜｜  5 bytes Identifier 固定长度字符串："JFIF\0"
+    # 版本号｜｜｜  2 bytes 一般为0x0101或0x0102，表示1.1或1.2
+    # 像素单位｜｜  1 byte  坐标单位
+    #       0 没有单位
+    #       1 pixel/inch
+    #       2 pixel/inch
+    # 水平像素数目  2 bytes
+    # 垂直像素数目  2 bytes
+    # 缩略图素数目  2 bytes
+    #       1 byte 水平
+    #       1 byte 垂直
+    # 缩略图位图 3n bytes
+    # n = 缩略图水平像素数目*缩略图垂直像素数目
+    # 这是一个24bits/pixel的RGB位图
+    def __init__(self, segment: bytes) -> None:
+        print('APP0 Len:', len(segment))
+
+class APPn:
+    'Application-specific n'
+    # 标记代码｜｜  2 bytes 固定值：0xFFEn(1~F)
+    # 数据长度｜｜  2 bytes 包含自身但不包含标记代码
+    # 详细信息｜｜  (length - 2) bytes
+    #       Exif使用APP1来存放图片的metadata
+    #       Adobe Photoshop用APP1和APP13两个标记段分别存储了一副图像的副本
+    def __init__(self, segment: bytes) -> None:
+        print('APP0 Len:', len(segment))
+
 class SOF0:
     'Start of Frame0 Baseline DCT-based JPEG'
     # 标记代码｜｜  2 bytes 固定值：0xFFC0
@@ -45,7 +76,7 @@ class SOF2:
 
 class DHT:
     'Define Huffman Tables'
-    # 标记代码｜｜  2 bytes 固定值：0xFFC0
+    # 标记代码｜｜  2 bytes 固定值：0xFFC4
     # 数据长度｜｜  2 bytes 包含自身但不包含标记代码
     # 哈夫曼表｜｜  (length - 2) bytes
     #       表ID和表类型  1 byte
@@ -58,7 +89,7 @@ class DHT:
 
 class DQT:
     'Define Quantization Table'
-    # 标记代码｜｜  2 bytes 固定值：0xFFC0
+    # 标记代码｜｜  2 bytes 固定值：0xFFDB
     # 数据长度｜｜  2 bytes 包含自身但不包含标记代码
     # 量化表｜｜｜  （length - 2） bytes
     #       精度和ID  1 byte
@@ -72,6 +103,8 @@ class DQT:
 
 class DRI:
     'Define Restart Interval ST中的marker'
+    # 标记代码｜｜  2 bytes 固定值：0xFFDD
+    # 数据长度｜｜  2 bytes 固定值0x0004
     def __init__(self, segment: bytes) -> None:
         print('DRI Len:', len(segment))
 
@@ -96,38 +129,10 @@ class COM:
     def __init__(self, segment: bytes) -> None:
         print('COM Len:', len(segment))
 
-class APP0:
-    'Application-specific 0'
-    # 标记代码｜｜  2 bytes 固定值：0xFFE0
-    # 数据长度｜｜  2 bytes 包含自身但不包含标记代码
-    # 标识符｜｜｜  5 bytes Identifier 固定长度字符串："JFIF\0"
-    # 版本号｜｜｜  2 bytes 一般为0x0101或0x0102，表示1.1或1.2
-    # 像素单位｜｜  1 byte  坐标单位
-    #       0 没有单位
-    #       1 pixel/inch
-    #       2 pixel/inch
-    # 水平像素数目  2 bytes
-    # 垂直像素数目  2 bytes
-    # 缩略图素数目  2 bytes
-    #       1 byte 水平
-    #       1 byte 垂直
-    # 缩略图位图 3n bytes
-    # n = 缩略图水平像素数目*缩略图垂直像素数目
-    # 这是一个24bits/pixel的RGB位图
-    def __init__(self, segment: bytes) -> None:
-        print('APP0 Len:', len(segment))
+class Frame:
+    pass
 
-class APPn:
-    'Application-specific n'
-    # 标记代码｜｜  2 bytes 固定值：0xFFE0
-    # 数据长度｜｜  2 bytes 包含自身但不包含标记代码
-    # 详细信息｜｜  (length - 2) bytes
-    #       Exif使用APP1来存放图片的metadata
-    #       Adobe Photoshop用APP1和APP13两个标记段分别存储了一副图像的副本
-    def __init__(self, segment: bytes) -> None:
-        print('APP0 Len:', len(segment))
-
-class Jpeg(SOI, EOI, SOF0, SOF2, DHT, DQT, DRI):
+class Jpeg(SOI, EOI, SOF0, SOF2, DHT, DQT, DRI, COM):
     def _read_segments(content: bytes):
         segments = []
         segment = []
@@ -149,6 +154,10 @@ class Jpeg(SOI, EOI, SOF0, SOF2, DHT, DQT, DRI):
                     elif byte == 0xD9:
                         segments.append([0xD9])
                         break
+                    # RSTn
+                    elif byte == 0xD0 or 0xD1 or 0xD2 or 0xD3 or 0xD4 or 0xD5 or 0xD6 or 0xD7:
+                        segments.append(segment)
+                        segment = []
                     else:
                         segments.append(segment)
                         segment = [byte]
@@ -176,10 +185,10 @@ class Jpeg(SOI, EOI, SOF0, SOF2, DHT, DQT, DRI):
                 DQT.__init__(self, seg)
             elif seg[0] == 0xDD:
                 DRI.__init__(self, seg)
-            elif seg[0] == 0xDA:
-                SOS.__init__(self, seg)
             elif seg[0] == 0xFE:
-                SOS.__init__(self, seg)
+                COM.__init__(self, seg)
+            elif seg[0] == 0xDA:
+                break
             else:
                 print('Unknown Segment:', hex(seg[0]))
         # 读取文件数据
