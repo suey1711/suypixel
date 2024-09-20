@@ -1,3 +1,6 @@
+# Jpeg Decoder
+
+from struct import unpack
 
 class SOI:
     'Start of image'
@@ -93,8 +96,15 @@ class DRI:
     'Define Restart Interval ST中的marker'
     # 标记代码｜｜  2 bytes 固定值：0xFFDD
     # 数据长度｜｜  2 bytes 固定值0x0004
+    # MCU块的单元中的重新开始间隔
+    #   设其值为n，则表示每n个MCU块就有一个RSTn标记
+    #   第一个标记是RST0，第二个是RST1等，RST7后再从RST0重复。
     def __init__(self, segment: bytes) -> None:
-        print('DRI Len:', len(segment))
+        marker = segment[0]
+        length = unpack('>H', bytes(segment[1:3]))[0]
+        count = unpack('>H', bytes(segment[3:5]))[0]
+        print('DRI length:', length)
+        print('DRI count:', count)
 
 class SOS:
     'Start of Scan'
