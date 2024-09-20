@@ -1,15 +1,3 @@
-# 缩写	字节码	名称	注释
-# SOI	0xFFD8	Start of image 文件开头
-# SOF0	0xFFC0	Baseline DCT-based JPEG
-# SOF2	0xFFC2	Progressive DCT-based JPEG
-# DHT	0xFFC4	Define Huffman Tables
-# DQT	0xFFDB	Define Quantization Table
-# DRI	0xFFDD	Define Restart Interval RST中的marker
-# SOS	0xFFDA	Start of Scan Scan的开头
-# RSTn	0xFFDn	Restart DRImarker中插入r个块
-# APPn	0xFFEn	Application-specific Exif JPEG使用APP1, JFIF JPEG使用APP0
-# COM	0xFFFE	Comment 注释内容
-# EOI	0xFFD9	End of Image 图像的结束
 
 class SOI:
     'Start of image'
