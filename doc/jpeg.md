@@ -18,8 +18,16 @@
 - ### Marker 0xFFDB
 
 ### DRI Define Restart Interval
-- ### RST中的marker
 - ### Marker 0xFFDD
+- ### Payload
+    | name | length | value |
+    |------|--------| ----- |
+    | 数据长度 | 2bytes | 0x0004 |
+    | MCU重新开始间隔 | 2bytes | n |
+
+- ### MCU重新开始间隔
+    -  设其值为n，则表示每n个MCU块就有一个RSTn标记
+    -  第一个标记是RST0，第二个是RST1等，RST7后再从RST0重复
 
 ### SOS - Start of Scan
 - ### Marker 0xFFDA
