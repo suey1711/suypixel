@@ -1,4 +1,17 @@
-# Jpeg Decoder
+# Jpeg Segments
+# name  Marker  Describe
+# SOI   0xFFD8  Start of Image
+# SOF0  0xFFC0  Baseline DCT-based JPEG
+# SOF2  0xFFC2  Progressive DCT-based JPEG
+# DHT   0xFFC4  Define Huffman Tables
+# DQT   0xFFDB  Define Quantization Table
+# DRI   0xFFDD  Define Restart Interval
+# SOS   0xFFDA  Start of Scan
+# RSTn  0xFFDn  Restart 每间隔N个MCU就会有一个RST0～7循环
+# APPn  0xFFEn  Application-specific
+#   Exif JPEG使用APP1, JFIF JPEG使用APP0
+# COM   0xFFFE  Comment 注释内容
+# EOI   0xFFD9  End of Image
 
 from struct import unpack
 
@@ -94,6 +107,11 @@ class DQT:
 
 class DRI:
     'Define Restart Interval ST中的marker'
+    # 标记代码｜｜  2 bytes 固定值：0xFFDD
+    # 数据长度｜｜  2 bytes 固定值0x0004
+    # MCU块的单元中的重新开始间隔
+    #   设其值为n，则表示每n个MCU块就有一个RSTn标记
+    #   第一个标记是RST0，第二个是RST1等，RST7后再从RST0重复。
     def __init__(self, segment: bytes) -> None:
         marker = segment[0]
         length = unpack('>H', bytes(segment[1:3]))[0]
