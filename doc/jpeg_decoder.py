@@ -1,17 +1,16 @@
 # Jpeg Segments
-# name  Marker  Describe
-# SOI   0xFFD8  Start of Image
+# Abbr  Marker  Name                        Describe
+# SOI   0xFFD8  Start of Image              文件开始
 # SOF0  0xFFC0  Baseline DCT-based JPEG
 # SOF2  0xFFC2  Progressive DCT-based JPEG
 # DHT   0xFFC4  Define Huffman Tables
 # DQT   0xFFDB  Define Quantization Table
-# DRI   0xFFDD  Define Restart Interval
-# SOS   0xFFDA  Start of Scan
-# RSTn  0xFFDn  Restart 每间隔N个MCU就会有一个RST0～7循环
-# APPn  0xFFEn  Application-specific
-#   Exif JPEG使用APP1, JFIF JPEG使用APP0
-# COM   0xFFFE  Comment 注释内容
-# EOI   0xFFD9  End of Image
+# DRI   0xFFDD  Define Restart Interval     定义RSTn的MCU间隔数N
+# SOS   0xFFDA  Start of Scan               图像数据开始
+# RSTn  0xFFDn  Restart                     每间隔N个MCU就会有一个RST0～7循环
+# APPn  0xFFEn  Application-specific        Exif JPEG使用APP1, JFIF JPEG使用APP0
+# COM   0xFFFE  Comment                     注释内容
+# EOI   0xFFD9  End of Image                文件结束
 
 from struct import unpack
 
