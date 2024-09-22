@@ -70,7 +70,18 @@ class SOF0:
     #       1 byte 采样因子（前4位：水平采样，后4位：垂直采样）
     #       1 byte 当前分量使用的量化表ID
     def __init__(self, segment: bytes) -> None:
-        print('SOF0 Len:', len(segment))
+        marker = segment[0]
+        if marker != 0xC0:
+            raise ValueError(f'SOF0 Marker Error: {hex(marker)}')
+        length = unpack('>H', bytes(segment[1:3]))[0]
+        degree = unpack('>B', bytes(segment[3:4]))[0]
+        height = unpack('>H', bytes(segment[4:6]))[0]
+        width = unpack('>H', bytes(segment[6:8]))[0]
+        weight = unpack('>H', bytes(segment[8:10]))[0]
+        weight_info = []
+        print(f'===== SOS length: {length} =====')
+        print('Sample Degree:', degree)
+        print('Image Width x Heigth:', height, width)
 
 class SOF2:
     'Start of Frame2 Progressive DCT-based JPEG'
@@ -113,10 +124,12 @@ class DRI:
     #   第一个标记是RST0，第二个是RST1等，RST7后再从RST0重复。
     def __init__(self, segment: bytes) -> None:
         marker = segment[0]
+        if marker != 0xDD:
+            raise ValueError(f'DRI Marker Error: {hex(marker)}')
         length = unpack('>H', bytes(segment[1:3]))[0]
-        count = unpack('>H', bytes(segment[3:5]))[0]
-        print('DRI length:', length)
-        print('DRI count:', count)
+        interval = unpack('>H', bytes(segment[3:5]))[0]
+        print(f'===== DRI length: {length} =====')
+        print('MCU Interval:', interval)
 
 class SOS:
     'Start of Scan'
@@ -132,7 +145,13 @@ class SOS:
     #       1 byte 谱选择结束 固定为0x3f
     #       1 byte 谱选择 在basic JPEG中固定为00
     def __init__(self, segment: bytes) -> None:
-        print('SOS Len:', len(segment))
+        marker = segment[0]
+        if marker != 0xDA:
+            raise ValueError(f'SOS Marker Error: {hex(marker)}')
+        length = unpack('>H', bytes(segment[1:3]))[0]
+        weight = unpack('>H', bytes(segment[3:5]))[0]
+        print(f'===== SOS length: {length} =====')
+        print('Color Weight:', weight)
 
 class COM:
     'Comment'
