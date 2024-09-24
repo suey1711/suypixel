@@ -64,24 +64,32 @@ class SOF0:
     # 精度｜｜｜｜  1 byte  每个样本数据的位数，通常是8位
     # 图像高度｜｜  2 bytes 单位：像素
     # 图像宽度｜｜  2 bytes 单位：像素
-    # 颜色分量数｜  2 bytes 灰度级1，YCbCr或YIQ是3，CMYK是4
+    # 颜色分量数｜  1 bytes 灰度级1，YCbCr或YIQ是3，CMYK是4
     # 颜色分量信息  颜色分量数 * 3 bytes
     #       1 byte 分量ID
     #       1 byte 采样因子（前4位：水平采样，后4位：垂直采样）
     #       1 byte 当前分量使用的量化表ID
     def __init__(self, segment: bytes) -> None:
-        marker = segment[0]
-        if marker != 0xC0:
-            raise ValueError(f'SOF0 Marker Error: {hex(marker)}')
+        _ = segment[0]  # marker
         length = unpack('>H', bytes(segment[1:3]))[0]
         degree = unpack('>B', bytes(segment[3:4]))[0]
         height = unpack('>H', bytes(segment[4:6]))[0]
         width = unpack('>H', bytes(segment[6:8]))[0]
-        weight = unpack('>H', bytes(segment[8:10]))[0]
-        weight_info = []
-        print(f'===== SOS length: {length} =====')
+        vector_count = unpack('>B', bytes(segment[8:9]))[0]
+        vector_info = []
+        print(vector_count)
+        for count in range(vector_count):
+            vector_id = segment[9 + count * 3]
+            sample_factor = segment[10 + count * 3]
+            vertical_factor = sample_factor & 0x0F
+            horizontal_factor = sample_factor >> 4
+            dqt_id = segment[11 + count * 3]
+            vector_info.append((vector_id, horizontal_factor, vertical_factor, dqt_id))
+        print(f'===== SOF0 length: {length} =====')
         print('Sample Degree:', degree)
         print('Image Width x Heigth:', height, width)
+        print('Vector Info:', vector_info)
+
 
 class SOF2:
     'Start of Frame2 Progressive DCT-based JPEG'
@@ -123,9 +131,7 @@ class DRI:
     #   设其值为n，则表示每n个MCU块就有一个RSTn标记
     #   第一个标记是RST0，第二个是RST1等，RST7后再从RST0重复。
     def __init__(self, segment: bytes) -> None:
-        marker = segment[0]
-        if marker != 0xDD:
-            raise ValueError(f'DRI Marker Error: {hex(marker)}')
+        _ = segment[0]  # marker
         length = unpack('>H', bytes(segment[1:3]))[0]
         interval = unpack('>H', bytes(segment[3:5]))[0]
         print(f'===== DRI length: {length} =====')
@@ -145,9 +151,7 @@ class SOS:
     #       1 byte 谱选择结束 固定为0x3f
     #       1 byte 谱选择 在basic JPEG中固定为00
     def __init__(self, segment: bytes) -> None:
-        marker = segment[0]
-        if marker != 0xDA:
-            raise ValueError(f'SOS Marker Error: {hex(marker)}')
+        _ = segment[0]  # marker
         length = unpack('>H', bytes(segment[1:3]))[0]
         weight = unpack('>H', bytes(segment[3:5]))[0]
         print(f'===== SOS length: {length} =====')
