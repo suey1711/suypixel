@@ -63,6 +63,8 @@ class APP0:
         thumbnail = segment[17:]
         if len(thumbnail) != thumbnail_row * thumbnail_col * 3:
             raise ValueError('thumbnail Length Error')
+        if length != 16 + len(thumbnail):
+            raise ValueError(f'SOF0 Length Error, Expect({length}), Read({16 + len(thumbnail)})')
         print(f'===== APP0 length: {length} =====')
         print('Identifier:', identifier)
         print('Version:', hex(version))
@@ -108,6 +110,8 @@ class SOF0:
             horizontal_factor = sample_factor >> 4
             dqt_id = segment[11 + count * 3]
             vector_info.append((vector_id, horizontal_factor, vertical_factor, dqt_id))
+        if length != 11 + (vector_count - 1) * 3:
+            raise ValueError(f'SOF0 Length Error, Expect({length}), Read({(vector_count - 1) * 3})')
         print(f'===== SOF0 length: {length} =====')
         print('Sample Degree:', degree)
         print('Image Width x Heigth:', height, width)
@@ -156,6 +160,9 @@ class DRI:
         _ = segment[0]  # marker
         length = unpack('>H', bytes(segment[1:3]))[0]
         interval = unpack('>H', bytes(segment[3:5]))[0]
+        if length != 4:
+            raise ValueError(f'SOF0 Length Error, Expect({length}), Read(4)')
+
         print(f'===== DRI length: {length} =====')
         print('MCU Interval:', interval)
 
@@ -178,7 +185,6 @@ class SOS:
         length = unpack('>H', bytes(segment[1:3]))[0]
         vector_count = unpack('B', bytes(segment[3:4]))[0]
         vector_info = []
-        print(vector_count)
         for count in range(vector_count):
             vector_id = segment[4 + count * 2]
             dht_id = segment[5 + count * 2]
@@ -191,6 +197,8 @@ class SOS:
         if thumbnail_spectrum_start != 0x00 \
             or thumbnail_spectrum_end != 0x3F:
                 raise ValueError('Thumbnail Spectrum Error')
+        if length != 6 + vector_count * 2:
+            raise ValueError(f'SOF0 Length Error, Expect({length}), Read({6 + vector_count * 2})')
         print(f'===== SOF0 length: {length} =====')
         print('Vector Info:', vector_info)
         print('Thumbnail Spectrum Select:', thumbnail_spectrum_select)
