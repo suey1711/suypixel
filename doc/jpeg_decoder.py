@@ -53,24 +53,24 @@ class APP0:
     def __init__(self, segment: bytes) -> None:
         _ = segment[0]  # marker
         length = unpack('>H', bytes(segment[1:3]))[0]
-        identifier = unpack('5s', bytes(segment[3:8]))
-        version = unpack('>H', bytes(segment[8:10]))[0]
-        unit = DensityUnit(unpack('B', bytes(segment[10:11]))[0])
-        density_row = unpack('>H', bytes(segment[11:13]))[0]
-        density_col = unpack('>H', bytes(segment[13:15]))[0]
-        thumbnail_row = unpack('B', bytes(segment[15:16]))[0]
-        thumbnail_col = unpack('B', bytes(segment[16:17]))[0]
-        thumbnail = segment[17:]
-        if len(thumbnail) != thumbnail_row * thumbnail_col * 3:
+        self.identifier = unpack('5s', bytes(segment[3:8]))
+        self.version = unpack('>H', bytes(segment[8:10]))[0]
+        self.unit = DensityUnit(unpack('B', bytes(segment[10:11]))[0])
+        self.density_row = unpack('>H', bytes(segment[11:13]))[0]
+        self.density_col = unpack('>H', bytes(segment[13:15]))[0]
+        self.thumbnail_row = unpack('B', bytes(segment[15:16]))[0]
+        self.thumbnail_col = unpack('B', bytes(segment[16:17]))[0]
+        self.thumbnail = segment[17:]
+        if len(self.thumbnail) != self.thumbnail_row * self.thumbnail_col * 3:
             raise ValueError('thumbnail Length Error')
-        if length != 16 + len(thumbnail):
-            raise ValueError(f'SOF0 Length Error, Expect({length}), Read({16 + len(thumbnail)})')
+        if length != 16 + len(self.thumbnail):
+            raise ValueError(f'SOF0 Length Error, Expect({length}), Read({16 + len(self.thumbnail)})')
         print(f'===== APP0 length: {length} =====')
-        print('Identifier:', identifier)
-        print('Version:', hex(version))
-        print('Unit:', unit)
-        print('Image Density Width x Heigth:', density_row, density_col)
-        print('thumbnail Width x Heigth:', thumbnail_row, thumbnail_col)
+        print('Identifier:', self.identifier)
+        print('Version:', hex(self.version))
+        print('Unit:', self.unit)
+        print('Image Density Width x Heigth:', self.density_row, self.density_col)
+        print('thumbnail Width x Heigth:', self.thumbnail_row, self.thumbnail_col)
 
 class APPn:
     'Application-specific n'
@@ -97,30 +97,33 @@ class SOF0:
     def __init__(self, segment: bytes) -> None:
         _ = segment[0]  # marker
         length = unpack('>H', bytes(segment[1:3]))[0]
-        degree = unpack('B', bytes(segment[3:4]))[0]
-        height = unpack('>H', bytes(segment[4:6]))[0]
-        width = unpack('>H', bytes(segment[6:8]))[0]
-        vector_count = unpack('B', bytes(segment[8:9]))[0]
-        vector_info = []
-        print(vector_count)
-        for count in range(vector_count):
+        self.degree = unpack('B', bytes(segment[3:4]))[0]
+        self.height = unpack('>H', bytes(segment[4:6]))[0]
+        self.width = unpack('>H', bytes(segment[6:8]))[0]
+        self.vector_count = unpack('B', bytes(segment[8:9]))[0]
+        self.vector_info = []
+        for count in range(self.vector_count):
             vector_id = segment[9 + count * 3]
             sample_factor = segment[10 + count * 3]
             vertical_factor = sample_factor & 0x0F
             horizontal_factor = sample_factor >> 4
             dqt_id = segment[11 + count * 3]
-            vector_info.append((vector_id, horizontal_factor, vertical_factor, dqt_id))
-        if length != 11 + (vector_count - 1) * 3:
-            raise ValueError(f'SOF0 Length Error, Expect({length}), Read({(vector_count - 1) * 3})')
+            self.vector_info.append((vector_id, horizontal_factor, vertical_factor, dqt_id))
+        if length != 11 + (self.vector_count - 1) * 3:
+            raise ValueError(f'SOF0 Length Error, Expect({length}), Read({(self.vector_count - 1) * 3})')
         print(f'===== SOF0 length: {length} =====')
-        print('Sample Degree:', degree)
-        print('Image Width x Heigth:', height, width)
-        print('Vector Info:', vector_info)
+        print('Sample Degree:', self.degree)
+        print('Image Width x Heigth:', self.height, self.width)
+        print('Vector Info:', self.vector_info)
 
 class SOF2:
     'Start of Frame2 Progressive DCT-based JPEG'
     def __init__(self, segment: bytes) -> None:
         print('SOF2 Len:', len(segment))
+
+class HuffmanTableType(Enum):
+    DC = 0
+    AC = 1
 
 class DHT:
     'Define Huffman Tables'
@@ -133,7 +136,26 @@ class DHT:
     #       不同位数的码字数量 16 bytes
     #       编码内容  上述16个不同位数的码字的数量和 bytes
     def __init__(self, segment: bytes) -> None:
-        print('DHT Len:', len(segment))
+        _ = segment[0]  # marker
+        length = unpack('>H', bytes(segment[1:3]))[0]
+        value = unpack('B', bytes(segment[3:4]))[0]
+        self.id = value & 0x0F
+        self.table_type = HuffmanTableType(value >> 4)
+        self.counts = segment[4:20]
+        self.tables = []
+        all_counts = 0
+        for count in self.counts:
+            self.tables.append(segment[20 + all_counts: 20 + all_counts + count])
+            all_counts += count
+        if length != 19 + all_counts:
+            raise ValueError(f'SOF0 Length Error, Expect({length}), Read({19 + all_counts})')
+
+        print(f'===== DHT length: {length} =====')
+        print(f'DHT ID: {self.id}, Type: {self.table_type}, Counts: {all_counts}')
+
+class QuantizationDegree(Enum):
+    Bits8 = 0
+    Bits16 = 1
 
 class DQT:
     'Define Quantization Table'
@@ -147,7 +169,17 @@ class DQT:
     #           8bits  64 * (0 + 1)bytes = 64 bytes
     #           16bits  64 * (1 + 1)bytes 128 bytes
     def __init__(self, segment: bytes) -> None:
-        print('DQT Len:', len(segment))
+        _ = segment[0]  # marker
+        length = unpack('>H', bytes(segment[1:3]))[0]
+        value = unpack('B', bytes(segment[3:4]))[0]
+        self.id = value & 0x0F
+        self.degree = QuantizationDegree(value >> 4)
+        self.table = segment[4:4 + 64 * (self.degree.value + 1)]
+        if length != 3 + len(self.table):
+            raise ValueError(f'SOF0 Length Error, Expect({length}), Read({3 + len(self.table)})')
+
+        print(f'===== DQT length: {length} =====')
+        print(f'DQT ID: {self.id}, Degree: {self.degree}')
 
 class DRI:
     'Define Restart Interval ST中的marker'
@@ -159,12 +191,12 @@ class DRI:
     def __init__(self, segment: bytes) -> None:
         _ = segment[0]  # marker
         length = unpack('>H', bytes(segment[1:3]))[0]
-        interval = unpack('>H', bytes(segment[3:5]))[0]
+        self.interval = unpack('>H', bytes(segment[3:5]))[0]
         if length != 4:
             raise ValueError(f'SOF0 Length Error, Expect({length}), Read(4)')
 
         print(f'===== DRI length: {length} =====')
-        print('MCU Interval:', interval)
+        print('MCU Interval:', self.interval)
 
 class SOS:
     'Start of Scan'
@@ -183,25 +215,25 @@ class SOS:
     def __init__(self, segment: bytes) -> None:
         _ = segment[0]  # marker
         length = unpack('>H', bytes(segment[1:3]))[0]
-        vector_count = unpack('B', bytes(segment[3:4]))[0]
-        vector_info = []
-        for count in range(vector_count):
+        self.vector_count = unpack('B', bytes(segment[3:4]))[0]
+        self.vector_info = []
+        for count in range(self.vector_count):
             vector_id = segment[4 + count * 2]
             dht_id = segment[5 + count * 2]
             ac = dht_id & 0x0F
             dc = dht_id >> 4
-            vector_info.append((vector_id, dc, ac))
-        thumbnail_spectrum_start = segment[4 + vector_count * 2]
-        thumbnail_spectrum_end = segment[5 + vector_count * 2]
-        thumbnail_spectrum_select = segment[6 + vector_count * 2]
-        if thumbnail_spectrum_start != 0x00 \
-            or thumbnail_spectrum_end != 0x3F:
+            self.vector_info.append((vector_id, dc, ac))
+        self.thumbnail_spectrum_start = segment[4 + self.vector_count * 2]
+        self.thumbnail_spectrum_end = segment[5 + self.vector_count * 2]
+        self.thumbnail_spectrum_select = segment[6 + self.vector_count * 2]
+        if self.thumbnail_spectrum_start != 0x00 \
+            or self.thumbnail_spectrum_end != 0x3F:
                 raise ValueError('Thumbnail Spectrum Error')
-        if length != 6 + vector_count * 2:
-            raise ValueError(f'SOF0 Length Error, Expect({length}), Read({6 + vector_count * 2})')
+        if length != 6 + self.vector_count * 2:
+            raise ValueError(f'SOF0 Length Error, Expect({length}), Read({6 + self.vector_count * 2})')
         print(f'===== SOF0 length: {length} =====')
-        print('Vector Info:', vector_info)
-        print('Thumbnail Spectrum Select:', thumbnail_spectrum_select)
+        print('Vector Info:', self.vector_info)
+        print('Thumbnail Spectrum Select:', self.thumbnail_spectrum_select)
 
 class COM:
     'Comment'
@@ -211,7 +243,7 @@ class COM:
 class Frame:
     pass
 
-class Jpeg(SOI, APP0, SOF0, DHT, DQT, DRI, EOI):
+class Jpeg:
     def _read_segments(content: bytes):
         segments = []
         segment = []
@@ -249,27 +281,27 @@ class Jpeg(SOI, APP0, SOF0, DHT, DQT, DRI, EOI):
     def __init__(self, path: str) -> None:
         segments = Jpeg._read_file(path)
         # 判断文件完整性
-        SOI.__init__(self, segments[0])
-        EOI.__init__(self, segments[-1])
+        SOI(segments[0])
+        EOI(segments[-1])
         # 读取图片参数
         for seg in segments[1: -1]:
             if seg[0] == 0xE0:
-                APP0.__init__(self, seg)
+                APP0(seg)
             elif seg[0] == 0xC0:
-                SOF0.__init__(self, seg)
+                SOF0(seg)
             elif seg[0] == 0xC2:
-                SOF2.__init__(self, seg)
+                SOF2(seg)
             elif seg[0] == 0xC4:
                 # 哈夫曼表可以重复出现（一般出现4次）
-                DHT.__init__(self, seg)
+                DHT(seg)
             elif seg[0] == 0xDB:
-                DQT.__init__(self, seg)
+                DQT(seg)
             elif seg[0] == 0xDD:
-                DRI.__init__(self, seg)
+                DRI(seg)
             elif seg[0] == 0xFE:
-                COM.__init__(self, seg)
+                COM(seg)
             elif seg[0] == 0xDA:
-                SOS.__init__(self, seg)
+                SOS(seg)
                 break
             else:
                 print('===== Unknown Segment:', hex(seg[0]), '=====')
