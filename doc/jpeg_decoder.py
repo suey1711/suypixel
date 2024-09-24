@@ -12,6 +12,7 @@
 # COM   0xFFFE  Comment                     注释内容
 # EOI   0xFFD9  End of Image                文件结束
 
+from enum import Enum
 from struct import unpack
 
 class SOI:
@@ -26,26 +27,48 @@ class EOI:
         if segment != [0xD9]:
             raise ValueError("EOI Read Error")
 
+class DensityUnit(Enum):
+    Unknown = 0
+    Pixel_Inch = 1
+    Pixel_Cm = 2
+
 class APP0:
     'Application-specific 0'
     # 标记代码｜｜  2 bytes 固定值：0xFFE0
     # 数据长度｜｜  2 bytes 包含自身但不包含标记代码
     # 标识符｜｜｜  5 bytes Identifier 固定长度字符串："JFIF\0"
     # 版本号｜｜｜  2 bytes 一般为0x0101或0x0102，表示1.1或1.2
-    # 像素单位｜｜  1 byte  坐标单位
+    # 像素单位｜｜  1 byte
     #       0 没有单位
     #       1 pixel/inch
-    #       2 pixel/inch
-    # 水平像素数目  2 bytes
-    # 垂直像素数目  2 bytes
-    # 缩略图素数目  2 bytes
+    #       2 pixel/cm
+    # 水平像素数目｜    2 bytes
+    # 垂直像素数目｜    2 bytes
+    # 缩略图像素数目    2 bytes
     #       1 byte 水平
     #       1 byte 垂直
     # 缩略图位图 3n bytes
     # n = 缩略图水平像素数目*缩略图垂直像素数目
     # 这是一个24bits/pixel的RGB位图
     def __init__(self, segment: bytes) -> None:
-        print('APP0 Len:', len(segment))
+        _ = segment[0]  # marker
+        length = unpack('>H', bytes(segment[1:3]))[0]
+        identifier = unpack('5s', bytes(segment[3:8]))
+        version = unpack('>H', bytes(segment[8:10]))[0]
+        unit = DensityUnit(unpack('B', bytes(segment[10:11]))[0])
+        density_row = unpack('>H', bytes(segment[11:13]))[0]
+        density_col = unpack('>H', bytes(segment[13:15]))[0]
+        minimap_row = unpack('B', bytes(segment[15:16]))[0]
+        minimap_col = unpack('B', bytes(segment[16:17]))[0]
+        minimap = segment[17:]
+        if len(minimap) != minimap_row * minimap_col * 3:
+            raise ValueError('Minimap Length Error')
+        print(f'===== APP0 length: {length} =====')
+        print('Identifier:', identifier)
+        print('Version:', hex(version))
+        print('Unit:', unit)
+        print('Image Density Width x Heigth:', density_row, density_col)
+        print('Minimap Width x Heigth:', minimap_row, minimap_col)
 
 class APPn:
     'Application-specific n'
@@ -55,7 +78,7 @@ class APPn:
     #       Exif使用APP1来存放图片的metadata
     #       Adobe Photoshop用APP1和APP13两个标记段分别存储了一副图像的副本
     def __init__(self, segment: bytes) -> None:
-        print('APP0 Len:', len(segment))
+        print('APPn Len:', len(segment))
 
 class SOF0:
     'Start of Frame0 Baseline DCT-based JPEG'
@@ -72,10 +95,10 @@ class SOF0:
     def __init__(self, segment: bytes) -> None:
         _ = segment[0]  # marker
         length = unpack('>H', bytes(segment[1:3]))[0]
-        degree = unpack('>B', bytes(segment[3:4]))[0]
+        degree = unpack('B', bytes(segment[3:4]))[0]
         height = unpack('>H', bytes(segment[4:6]))[0]
         width = unpack('>H', bytes(segment[6:8]))[0]
-        vector_count = unpack('>B', bytes(segment[8:9]))[0]
+        vector_count = unpack('B', bytes(segment[8:9]))[0]
         vector_info = []
         print(vector_count)
         for count in range(vector_count):
@@ -89,7 +112,6 @@ class SOF0:
         print('Sample Degree:', degree)
         print('Image Width x Heigth:', height, width)
         print('Vector Info:', vector_info)
-
 
 class SOF2:
     'Start of Frame2 Progressive DCT-based JPEG'
@@ -207,7 +229,9 @@ class Jpeg(SOI, APP0, SOF0, DHT, DQT, DRI, EOI):
         EOI.__init__(self, segments[-1])
         # 读取图片参数
         for seg in segments[1: -1]:
-            if seg[0] == 0xC0:
+            if seg[0] == 0xE0:
+                APP0.__init__(self, seg)
+            elif seg[0] == 0xC0:
                 SOF0.__init__(self, seg)
             elif seg[0] == 0xC2:
                 SOF2.__init__(self, seg)
@@ -223,7 +247,7 @@ class Jpeg(SOI, APP0, SOF0, DHT, DQT, DRI, EOI):
             elif seg[0] == 0xDA:
                 break
             else:
-                print('Unknown Segment:', hex(seg[0]))
+                print('===== Unknown Segment:', hex(seg[0]), '=====')
         # 读取文件数据
         # for seg in segments:
         #     print(hex(seg[0]), len(seg))
