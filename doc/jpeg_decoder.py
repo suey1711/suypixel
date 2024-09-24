@@ -58,17 +58,17 @@ class APP0:
         unit = DensityUnit(unpack('B', bytes(segment[10:11]))[0])
         density_row = unpack('>H', bytes(segment[11:13]))[0]
         density_col = unpack('>H', bytes(segment[13:15]))[0]
-        minimap_row = unpack('B', bytes(segment[15:16]))[0]
-        minimap_col = unpack('B', bytes(segment[16:17]))[0]
-        minimap = segment[17:]
-        if len(minimap) != minimap_row * minimap_col * 3:
-            raise ValueError('Minimap Length Error')
+        thumbnail_row = unpack('B', bytes(segment[15:16]))[0]
+        thumbnail_col = unpack('B', bytes(segment[16:17]))[0]
+        thumbnail = segment[17:]
+        if len(thumbnail) != thumbnail_row * thumbnail_col * 3:
+            raise ValueError('thumbnail Length Error')
         print(f'===== APP0 length: {length} =====')
         print('Identifier:', identifier)
         print('Version:', hex(version))
         print('Unit:', unit)
         print('Image Density Width x Heigth:', density_row, density_col)
-        print('Minimap Width x Heigth:', minimap_row, minimap_col)
+        print('thumbnail Width x Heigth:', thumbnail_row, thumbnail_col)
 
 class APPn:
     'Application-specific n'
@@ -163,11 +163,12 @@ class SOS:
     'Start of Scan'
     # 标记代码｜｜  2 bytes 固定值：0xFFDA
     # 数据长度｜｜  2 bytes 包含自身但不包含标记代码
-    # 颜色分量数｜  2 bytes 灰度级1，YCbCr或YIQ是3，CMYK是4
+    # 颜色分量数｜  1 bytes 灰度级1，YCbCr或YIQ是3，CMYK是4
     # 颜色分量信息  颜色分量数 * 3 bytes
     #       1 byte 分量ID
-    #       1 byte 采样因子（前4位：水平采样，后4位：垂直采样）
-    #       1 byte 当前分量使用的量化表ID
+    #       1 byte 直流/交流系数表号
+    #           高4位：直流分量使用的哈夫曼树编号（direct-current）
+    #           低4位：交流分量使用的哈夫曼树编号(alternating-current)
     # 压缩图像信息  3bytes
     #       1 byte 谱选择开始 固定为0x00
     #       1 byte 谱选择结束 固定为0x3f
@@ -175,9 +176,24 @@ class SOS:
     def __init__(self, segment: bytes) -> None:
         _ = segment[0]  # marker
         length = unpack('>H', bytes(segment[1:3]))[0]
-        weight = unpack('>H', bytes(segment[3:5]))[0]
-        print(f'===== SOS length: {length} =====')
-        print('Color Weight:', weight)
+        vector_count = unpack('B', bytes(segment[3:4]))[0]
+        vector_info = []
+        print(vector_count)
+        for count in range(vector_count):
+            vector_id = segment[4 + count * 2]
+            dht_id = segment[5 + count * 2]
+            ac = dht_id & 0x0F
+            dc = dht_id >> 4
+            vector_info.append((vector_id, dc, ac))
+        thumbnail_spectrum_start = segment[4 + vector_count * 2]
+        thumbnail_spectrum_end = segment[5 + vector_count * 2]
+        thumbnail_spectrum_select = segment[6 + vector_count * 2]
+        if thumbnail_spectrum_start != 0x00 \
+            or thumbnail_spectrum_end != 0x3F:
+                raise ValueError('Thumbnail Spectrum Error')
+        print(f'===== SOF0 length: {length} =====')
+        print('Vector Info:', vector_info)
+        print('Thumbnail Spectrum Select:', thumbnail_spectrum_select)
 
 class COM:
     'Comment'
@@ -245,6 +261,7 @@ class Jpeg(SOI, APP0, SOF0, DHT, DQT, DRI, EOI):
             elif seg[0] == 0xFE:
                 COM.__init__(self, seg)
             elif seg[0] == 0xDA:
+                SOS.__init__(self, seg)
                 break
             else:
                 print('===== Unknown Segment:', hex(seg[0]), '=====')
