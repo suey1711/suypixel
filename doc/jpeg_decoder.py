@@ -64,8 +64,10 @@ class APP0:
         if len(self.thumbnail) != self.thumbnail_row * self.thumbnail_col * 3:
             raise ValueError('thumbnail Length Error')
         if length != 16 + len(self.thumbnail):
-            raise ValueError(f'SOF0 Length Error, Expect({length}), Read({16 + len(self.thumbnail)})')
-        print(f'===== APP0 length: {length} =====')
+            raise ValueError(f'APP0 Length Error, Expect({length}), Read({16 + len(self.thumbnail)})')
+
+    def print(self):
+        print(f'===== APP0 =====')
         print('Identifier:', self.identifier)
         print('Version:', hex(self.version))
         print('Unit:', self.unit)
@@ -111,7 +113,9 @@ class SOF0:
             self.vector_info.append((vector_id, horizontal_factor, vertical_factor, dqt_id))
         if length != 11 + (self.vector_count - 1) * 3:
             raise ValueError(f'SOF0 Length Error, Expect({length}), Read({(self.vector_count - 1) * 3})')
-        print(f'===== SOF0 length: {length} =====')
+
+    def print(self):
+        print(f'===== SOF0 =====')
         print('Sample Degree:', self.degree)
         print('Image Width x Heigth:', self.height, self.width)
         print('Vector Info:', self.vector_info)
@@ -143,15 +147,16 @@ class DHT:
         self.table_type = HuffmanTableType(value >> 4)
         self.counts = segment[4:20]
         self.tables = []
-        all_counts = 0
+        self.all_counts = 0
         for count in self.counts:
-            self.tables.append(segment[20 + all_counts: 20 + all_counts + count])
-            all_counts += count
-        if length != 19 + all_counts:
-            raise ValueError(f'SOF0 Length Error, Expect({length}), Read({19 + all_counts})')
+            self.tables.append(segment[20 + self.all_counts: 20 + self.all_counts + count])
+            self.all_counts += count
+        if length != 19 + self.all_counts:
+            raise ValueError(f'DHT Length Error, Expect({length}), Read({19 + self.all_counts})')
 
-        print(f'===== DHT length: {length} =====')
-        print(f'DHT ID: {self.id}, Type: {self.table_type}, Counts: {all_counts}')
+    def print(self):
+        print(f'===== DHT =====')
+        print(f'DHT ID: {self.id}, Type: {self.table_type}, Counts: {self.all_counts}')
 
 class QuantizationDegree(Enum):
     Bits8 = 0
@@ -176,9 +181,10 @@ class DQT:
         self.degree = QuantizationDegree(value >> 4)
         self.table = segment[4:4 + 64 * (self.degree.value + 1)]
         if length != 3 + len(self.table):
-            raise ValueError(f'SOF0 Length Error, Expect({length}), Read({3 + len(self.table)})')
+            raise ValueError(f'DQT Length Error, Expect({length}), Read({3 + len(self.table)})')
 
-        print(f'===== DQT length: {length} =====')
+    def print(self):
+        print(f'===== DQT =====')
         print(f'DQT ID: {self.id}, Degree: {self.degree}')
 
 class DRI:
@@ -193,9 +199,10 @@ class DRI:
         length = unpack('>H', bytes(segment[1:3]))[0]
         self.interval = unpack('>H', bytes(segment[3:5]))[0]
         if length != 4:
-            raise ValueError(f'SOF0 Length Error, Expect({length}), Read(4)')
+            raise ValueError(f'DRI Length Error, Expect({length}), Read(4)')
 
-        print(f'===== DRI length: {length} =====')
+    def print(self):
+        print(f'===== DRI =====')
         print('MCU Interval:', self.interval)
 
 class SOS:
@@ -230,8 +237,10 @@ class SOS:
             or self.thumbnail_spectrum_end != 0x3F:
                 raise ValueError('Thumbnail Spectrum Error')
         if length != 6 + self.vector_count * 2:
-            raise ValueError(f'SOF0 Length Error, Expect({length}), Read({6 + self.vector_count * 2})')
-        print(f'===== SOF0 length: {length} =====')
+            raise ValueError(f'SOS Length Error, Expect({length}), Read({6 + self.vector_count * 2})')
+
+    def print(self):
+        print(f'===== SOS =====')
         print('Vector Info:', self.vector_info)
         print('Thumbnail Spectrum Select:', self.thumbnail_spectrum_select)
 
@@ -280,26 +289,28 @@ class Jpeg:
         return segments
     def __init__(self, path: str) -> None:
         segments = Jpeg._read_file(path)
+        self.dht = []
+        self.dqt = []
         # 判断文件完整性
         SOI(segments[0])
         EOI(segments[-1])
         # 读取图片参数
         for seg in segments[1: -1]:
             if seg[0] == 0xE0:
-                APP0(seg)
+                self.app0 = APP0(seg)
             elif seg[0] == 0xC0:
-                SOF0(seg)
+                self.sof0 = SOF0(seg)
             elif seg[0] == 0xC2:
-                SOF2(seg)
+                self.sof2 = SOF2(seg)
             elif seg[0] == 0xC4:
                 # 哈夫曼表可以重复出现（一般出现4次）
-                DHT(seg)
+                self.dht.append(DHT(seg))
             elif seg[0] == 0xDB:
-                DQT(seg)
+                self.dqt.append(DQT(seg))
             elif seg[0] == 0xDD:
-                DRI(seg)
+                self.dri = DRI(seg)
             elif seg[0] == 0xFE:
-                COM(seg)
+                self.com = COM(seg)
             elif seg[0] == 0xDA:
                 SOS(seg)
                 break
