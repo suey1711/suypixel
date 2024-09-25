@@ -52,7 +52,7 @@ class APP0:
     # 这是一个24bits/pixel的RGB位图
     def __init__(self, segment: bytes) -> None:
         _ = segment[0]  # marker
-        length = unpack('>H', bytes(segment[1:3]))[0]
+        self.length = unpack('>H', bytes(segment[1:3]))[0]
         self.identifier = unpack('5s', bytes(segment[3:8]))
         self.version = unpack('>H', bytes(segment[8:10]))[0]
         self.unit = DensityUnit(unpack('B', bytes(segment[10:11]))[0])
@@ -63,8 +63,8 @@ class APP0:
         self.thumbnail = segment[17:]
         if len(self.thumbnail) != self.thumbnail_row * self.thumbnail_col * 3:
             raise ValueError('thumbnail Length Error')
-        if length != 16 + len(self.thumbnail):
-            raise ValueError(f'APP0 Length Error, Expect({length}), Read({16 + len(self.thumbnail)})')
+        if self.length != 16 + len(self.thumbnail):
+            raise ValueError(f'APP0 Length Error, Expect({self.length}), Read({16 + len(self.thumbnail)})')
 
     def print(self):
         print(f'===== APP0 =====')
@@ -98,7 +98,7 @@ class SOF0:
     #       1 byte 当前分量使用的量化表ID
     def __init__(self, segment: bytes) -> None:
         _ = segment[0]  # marker
-        length = unpack('>H', bytes(segment[1:3]))[0]
+        self.length = unpack('>H', bytes(segment[1:3]))[0]
         self.degree = unpack('B', bytes(segment[3:4]))[0]
         self.height = unpack('>H', bytes(segment[4:6]))[0]
         self.width = unpack('>H', bytes(segment[6:8]))[0]
@@ -111,8 +111,8 @@ class SOF0:
             horizontal_factor = sample_factor >> 4
             dqt_id = segment[11 + count * 3]
             self.vector_info.append((vector_id, horizontal_factor, vertical_factor, dqt_id))
-        if length != 11 + (self.vector_count - 1) * 3:
-            raise ValueError(f'SOF0 Length Error, Expect({length}), Read({(self.vector_count - 1) * 3})')
+        if self.length != 11 + (self.vector_count - 1) * 3:
+            raise ValueError(f'SOF0 Length Error, Expect({self.length}), Read({(self.vector_count - 1) * 3})')
 
     def print(self):
         print(f'===== SOF0 =====')
@@ -141,7 +141,7 @@ class DHT:
     #       编码内容  上述16个不同位数的码字的数量和 bytes
     def __init__(self, segment: bytes) -> None:
         _ = segment[0]  # marker
-        length = unpack('>H', bytes(segment[1:3]))[0]
+        self.length = unpack('>H', bytes(segment[1:3]))[0]
         value = unpack('B', bytes(segment[3:4]))[0]
         self.id = value & 0x0F
         self.table_type = HuffmanTableType(value >> 4)
@@ -151,8 +151,8 @@ class DHT:
         for count in self.counts:
             self.tables.append(segment[20 + self.all_counts: 20 + self.all_counts + count])
             self.all_counts += count
-        if length != 19 + self.all_counts:
-            raise ValueError(f'DHT Length Error, Expect({length}), Read({19 + self.all_counts})')
+        if self.length != 19 + self.all_counts:
+            raise ValueError(f'DHT Length Error, Expect({self.length}), Read({19 + self.all_counts})')
 
     def print(self):
         print(f'===== DHT =====')
@@ -175,13 +175,13 @@ class DQT:
     #           16bits  64 * (1 + 1)bytes 128 bytes
     def __init__(self, segment: bytes) -> None:
         _ = segment[0]  # marker
-        length = unpack('>H', bytes(segment[1:3]))[0]
+        self.length = unpack('>H', bytes(segment[1:3]))[0]
         value = unpack('B', bytes(segment[3:4]))[0]
         self.id = value & 0x0F
         self.degree = QuantizationDegree(value >> 4)
         self.table = segment[4:4 + 64 * (self.degree.value + 1)]
-        if length != 3 + len(self.table):
-            raise ValueError(f'DQT Length Error, Expect({length}), Read({3 + len(self.table)})')
+        if self.length != 3 + len(self.table):
+            raise ValueError(f'DQT Length Error, Expect({self.length}), Read({3 + len(self.table)})')
 
     def print(self):
         print(f'===== DQT =====')
@@ -196,10 +196,10 @@ class DRI:
     #   第一个标记是RST0，第二个是RST1等，RST7后再从RST0重复。
     def __init__(self, segment: bytes) -> None:
         _ = segment[0]  # marker
-        length = unpack('>H', bytes(segment[1:3]))[0]
+        self.length = unpack('>H', bytes(segment[1:3]))[0]
         self.interval = unpack('>H', bytes(segment[3:5]))[0]
-        if length != 4:
-            raise ValueError(f'DRI Length Error, Expect({length}), Read(4)')
+        if self.length != 4:
+            raise ValueError(f'DRI Length Error, Expect({self.length}), Read(4)')
 
     def print(self):
         print(f'===== DRI =====')
@@ -221,7 +221,7 @@ class SOS:
     #       1 byte 谱选择 在basic JPEG中固定为00
     def __init__(self, segment: bytes) -> None:
         _ = segment[0]  # marker
-        length = unpack('>H', bytes(segment[1:3]))[0]
+        self.length = unpack('>H', bytes(segment[1:3]))[0]
         self.vector_count = unpack('B', bytes(segment[3:4]))[0]
         self.vector_info = []
         for count in range(self.vector_count):
@@ -236,8 +236,8 @@ class SOS:
         if self.thumbnail_spectrum_start != 0x00 \
             or self.thumbnail_spectrum_end != 0x3F:
                 raise ValueError('Thumbnail Spectrum Error')
-        if length != 6 + self.vector_count * 2:
-            raise ValueError(f'SOS Length Error, Expect({length}), Read({6 + self.vector_count * 2})')
+        if self.length != 6 + self.vector_count * 2:
+            raise ValueError(f'SOS Length Error, Expect({self.length}), Read({6 + self.vector_count * 2})')
 
     def print(self):
         print(f'===== SOS =====')
@@ -250,7 +250,10 @@ class COM:
         print('COM Len:', len(segment))
 
 class Frame:
-    pass
+    def __init__(self) -> None:
+        self.data = []
+    def append(self, data):
+        self.data.append(data)
 
 class Jpeg:
     def _read_segments(content: bytes):
@@ -272,12 +275,9 @@ class Jpeg:
                     elif byte == 0xD8:
                         segment = [0xD8]
                     elif byte == 0xD9:
+                        segments.append(segment)
                         segments.append([0xD9])
                         break
-                    # RSTn
-                    # elif byte == 0xD0 or 0xD1 or 0xD2 or 0xD3 or 0xD4 or 0xD5 or 0xD6 or 0xD7:
-                    #     segments.append(segment)
-                    #     segment = []
                     else:
                         segments.append(segment)
                         segment = [byte]
@@ -291,6 +291,7 @@ class Jpeg:
         segments = Jpeg._read_file(path)
         self.dht = []
         self.dqt = []
+        self.frame = Frame()
         # 判断文件完整性
         SOI(segments[0])
         EOI(segments[-1])
@@ -312,15 +313,24 @@ class Jpeg:
             elif seg[0] == 0xFE:
                 self.com = COM(seg)
             elif seg[0] == 0xDA:
-                SOS(seg)
-                break
+                self.sos = SOS(seg)
+                self.frame.append(seg[self.sos.length + 1:])
+            elif seg[0] == 0xD0 \
+                or seg[0] == 0xD1 \
+                or seg[0] == 0xD2 \
+                or seg[0] == 0xD3 \
+                or seg[0] == 0xD4 \
+                or seg[0] == 0xD5 \
+                or seg[0] == 0xD6 \
+                or seg[0] == 0xD7:
+                self.frame.append(seg[1:])
             else:
                 print('===== Unknown Segment:', hex(seg[0]), '=====')
+        print(f'Frame Counts: {len(self.frame.data)}')
         # 读取文件数据
         # for seg in segments:
         #     print(hex(seg[0]), len(seg))
         # print(len(segments))
-
 
 if __name__ == '__main__':
     jpeg = Jpeg(f'./img/suey.jpg')
