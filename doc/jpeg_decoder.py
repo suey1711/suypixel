@@ -261,26 +261,28 @@ class Jpeg:
         segment = []
         flag = False
         for byte in content:
+            # split
             if byte == 0xFF:
                 flag = True
+                continue
+            # parse
+            if flag is False:
+                segment.append(byte)
             else:
-                if flag is False:
-                    segment.append(byte)
+                flag = False
+                if byte == 0x00:
+                    segment.append(0xFF)
+                elif byte == 0xFF:
+                    continue
+                elif byte == 0xD8:
+                    segment = [0xD8]
+                elif byte == 0xD9:
+                    segments.append(segment)
+                    segments.append([0xD9])
+                    break
                 else:
-                    flag = False
-                    if byte == 0x00:
-                        segment.append(0xFF)
-                    elif byte == 0xFF:
-                        continue
-                    elif byte == 0xD8:
-                        segment = [0xD8]
-                    elif byte == 0xD9:
-                        segments.append(segment)
-                        segments.append([0xD9])
-                        break
-                    else:
-                        segments.append(segment)
-                        segment = [byte]
+                    segments.append(segment)
+                    segment = [byte]
         return segments
     def _read_file(path: str):
         with open(path, 'rb') as f:
