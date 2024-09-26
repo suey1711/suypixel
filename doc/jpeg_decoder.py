@@ -27,12 +27,11 @@ class EOI:
         if segment != [0xD9]:
             raise ValueError("EOI Read Error")
 
-class DensityUnit(Enum):
-    Unknown = 0
-    Pixel_Inch = 1
-    Pixel_Cm = 2
-
 class APP0:
+    class DensityUnit(Enum):
+        Unknown = 0
+        Pixel_Inch = 1
+        Pixel_Cm = 2
     'Application-specific 0'
     # 标记代码｜｜  2 bytes 固定值：0xFFE0
     # 数据长度｜｜  2 bytes 包含自身但不包含标记代码
@@ -55,7 +54,7 @@ class APP0:
         self.length = unpack('>H', bytes(segment[1:3]))[0]
         self.identifier = unpack('5s', bytes(segment[3:8]))
         self.version = unpack('>H', bytes(segment[8:10]))[0]
-        self.unit = DensityUnit(unpack('B', bytes(segment[10:11]))[0])
+        self.unit = APP0.DensityUnit(unpack('B', bytes(segment[10:11]))[0])
         self.density_row = unpack('>H', bytes(segment[11:13]))[0]
         self.density_col = unpack('>H', bytes(segment[13:15]))[0]
         self.thumbnail_row = unpack('B', bytes(segment[15:16]))[0]
@@ -125,11 +124,10 @@ class SOF2:
     def __init__(self, segment: bytes) -> None:
         print('SOF2 Len:', len(segment))
 
-class HuffmanTableType(Enum):
-    DC = 0
-    AC = 1
-
 class DHT:
+    class TableType(Enum):
+        DC = 0
+        AC = 1
     'Define Huffman Tables'
     # 标记代码｜｜  2 bytes 固定值：0xFFC4
     # 数据长度｜｜  2 bytes 包含自身但不包含标记代码
@@ -144,15 +142,19 @@ class DHT:
         self.length = unpack('>H', bytes(segment[1:3]))[0]
         value = unpack('B', bytes(segment[3:4]))[0]
         self.id = value & 0x0F
-        self.table_type = HuffmanTableType(value >> 4)
+        self.table_type = DHT.TableType(value >> 4)
         self.counts = segment[4:20]
-        self.tables = []
+        self.codes = []
         self.all_counts = 0
         for count in self.counts:
-            self.tables.append(segment[20 + self.all_counts: 20 + self.all_counts + count])
+            self.codes.append(segment[20 + self.all_counts: 20 + self.all_counts + count])
             self.all_counts += count
         if self.length != 19 + self.all_counts:
             raise ValueError(f'DHT Length Error, Expect({self.length}), Read({19 + self.all_counts})')
+        self.table = DHT._generate_table(self.counts, self.codes)
+
+    def _generate_table(counts: list, codes: list) -> list:
+        []
 
     def print(self):
         print(f'===== DHT =====')
