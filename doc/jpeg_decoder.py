@@ -272,8 +272,6 @@ class Jpeg:
                 flag = False
                 if byte == 0x00:
                     segment.append(0xFF)
-                elif byte == 0xFF:
-                    continue
                 elif byte == 0xD8:
                     segment = [0xD8]
                 elif byte == 0xD9:
