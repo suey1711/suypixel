@@ -314,7 +314,7 @@ class Jpeg:
                 self.com = COM(seg)
             elif seg[0] == 0xDA:
                 self.sos = SOS(seg)
-                self.frame.append(seg[self.sos.length + 1:])
+                self.frame.append(seg[1 + self.sos.length:])
             elif seg[0] == 0xD0 \
                 or seg[0] == 0xD1 \
                 or seg[0] == 0xD2 \
