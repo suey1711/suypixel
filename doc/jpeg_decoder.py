@@ -147,30 +147,35 @@ class DHT:
         self.weights = []
         self.all_counts = 0
         for count in self.counts:
-            self.weights.append(segment[20 + self.all_counts: 20 + self.all_counts + count])
+            self.weights += segment[20 + self.all_counts: 20 + self.all_counts + count]
             self.all_counts += count
         if self.length != 19 + self.all_counts:
             raise ValueError(f'DHT Length Error, Expect({self.length}), Read({19 + self.all_counts})')
         self.table = DHT._generate_table(self.counts, self.weights)
+        print('====', self.counts)
+        for value in self.table:
+            print(value)
 
     def _generate_table(counts: list, weights: list) -> list:
         deep = 0
-        codes = []
-        code = '0'
-        pre_code = ''
+        cur = 0
+        table = ['0']
         for count in counts:
             deep += 1
-            print(deep, count)
             for _ in range(count):
-                if len(code) - len(pre_code) == 0:
-                    code = bin(int(code, 2) + 1)[2:]
-                offset = deep - len(code)
-                for _ in range(offset):
-                    code = code + '0'
-                print(code)
-                codes.append(code)
-                pre_code = code
-        codes
+                # start
+                if table == ['0']:
+                    for _ in range(deep - 1):
+                        table[0] += '0'
+                else:
+                    code = bin(int(table[cur - 1], 2) + 1)[2:]
+                    for _ in range(len(table[cur - 1]) - len(code)):
+                        code = '0' + code
+                    for _ in range(deep - len(code)):
+                        code += '0'
+                    table.append(code)
+                cur += 1
+        return table
 
     def print(self):
         print(f'===== DHT =====')
