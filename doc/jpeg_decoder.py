@@ -159,21 +159,20 @@ class DHT:
     def _generate_codes(counts: list) -> list:
         deep = 0
         cur = 0
-        codes = ['0']
+        codes = []
         for count in counts:
             deep += 1
             for _ in range(count):
                 # start
-                if codes == ['0']:
-                    for _ in range(deep - 1):
-                        codes[0] += '0'
+                if codes == []:
+                    code = '0'
                 else:
                     code = bin(int(codes[cur - 1], 2) + 1)[2:]
                     for _ in range(len(codes[cur - 1]) - len(code)):
                         code = '0' + code
-                    for _ in range(deep - len(code)):
-                        code += '0'
-                    codes.append(code)
+                for _ in range(deep - len(code)):
+                    code += '0'
+                codes.append(code)
                 cur += 1
         return codes
 
