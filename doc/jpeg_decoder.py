@@ -145,16 +145,18 @@ class DHT:
         self.table_type = DHT.TableType(value >> 4)
         self.counts = segment[4:20]
         self.weights = []
-        self.all_counts = 0
+        self.code_lens = []
+        code_len = 1
         for count in self.counts:
-            self.weights += segment[20 + self.all_counts: 20 + self.all_counts + count]
-            self.all_counts += count
-        if self.length != 19 + self.all_counts:
-            raise ValueError(f'DHT Length Error, Expect({self.length}), Read({19 + self.all_counts})')
-        self.table = DHT._generate_codes(self.counts)
-        print('====', self.counts)
-        for value in self.table:
-            print(value)
+            current_len = len(self.code_lens)
+            self.weights += segment[20 + current_len: 20 + current_len + count]
+            for _ in range(count):
+                self.code_lens.append(code_len)
+            code_len += 1
+
+        if self.length != 19 + len(self.code_lens):
+            raise ValueError(f'DHT Length Error, Expect({self.length}), Read({19 + len(self.code_lens)})')
+        self.codes = DHT._generate_codes(self.counts)
 
     def _generate_codes(counts: list) -> list:
         deep = 0
@@ -178,7 +180,11 @@ class DHT:
 
     def print(self):
         print(f'===== DHT =====')
-        print(f'DHT ID: {self.id}, Type: {self.table_type}, Counts: {self.all_counts}')
+        print(f'DHT ID: {self.id}, Type: {self.table_type}, Counts: {len(self.code_lens)}')
+    def print_table(self):
+        print('====', self.counts)
+        for index in range(len(self.code_lens)):
+            print(index, self.code_lens[index], self.codes[index], self.weights[index])
 
 class QuantizationDegree(Enum):
     Bits8 = 0
@@ -349,11 +355,12 @@ class Jpeg:
             else:
                 print('===== Unknown Segment:', hex(seg[0]), '=====')
         print(f'Frame Counts: {len(self.frame.data)}')
+        self.sof0.print()
         # 读取文件数据
         # for seg in segments:
         #     print(hex(seg[0]), len(seg))
         # print(len(segments))
 
 if __name__ == '__main__':
-    jpeg = Jpeg(f'./img/suey.jpg')
+    jpeg = Jpeg(f'./img/suy.jpeg')
 
