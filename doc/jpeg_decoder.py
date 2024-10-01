@@ -117,7 +117,9 @@ class SOF0:
         print(f'===== SOF0 =====')
         print('Sample Degree:', self.degree)
         print('Image Width x Heigth:', self.height, self.width)
-        print('Vector Info:', self.vector_info)
+        print('Vector Info: (ID, horizontal_factor, vertical_factor, dqt_id)')
+        for vector in self.vector_info:
+            print(vector)
 
 class SOF2:
     'Start of Frame2 Progressive DCT-based JPEG'
@@ -269,8 +271,10 @@ class SOS:
 
     def print(self):
         print(f'===== SOS =====')
-        print('Vector Info:', self.vector_info)
         print('Thumbnail Spectrum Select:', self.thumbnail_spectrum_select)
+        print('Vector Info: (ID, DC, AC)')
+        for vector in self.vector_info:
+            print(vector)
 
 class COM:
     'Comment'
@@ -356,6 +360,7 @@ class Jpeg:
                 print('===== Unknown Segment:', hex(seg[0]), '=====')
         print(f'Frame Counts: {len(self.frame.data)}')
         self.sof0.print()
+        self.sos.print()
         # 读取文件数据
         # for seg in segments:
         #     print(hex(seg[0]), len(seg))
