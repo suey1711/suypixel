@@ -102,14 +102,16 @@ class SOF0:
         self.height = unpack('>H', bytes(segment[4:6]))[0]
         self.width = unpack('>H', bytes(segment[6:8]))[0]
         self.vector_count = unpack('B', bytes(segment[8:9]))[0]
-        self.vector_info = []
+        self.dqt_map = []
+        self.factor = []
         for count in range(self.vector_count):
             vector_id = segment[9 + count * 3]
             sample_factor = segment[10 + count * 3]
             vertical_factor = sample_factor & 0x0F
             horizontal_factor = sample_factor >> 4
             dqt_id = segment[11 + count * 3]
-            self.vector_info.append((vector_id, horizontal_factor, vertical_factor, dqt_id))
+            self.dqt_map.append((vector_id, dqt_id))
+            self.factor.append((vector_id, horizontal_factor, vertical_factor))
         if self.length != 11 + (self.vector_count - 1) * 3:
             raise ValueError(f'SOF0 Length Error, Expect({self.length}), Read({(self.vector_count - 1) * 3})')
 
@@ -117,8 +119,11 @@ class SOF0:
         print(f'===== SOF0 =====')
         print('Sample Degree:', self.degree)
         print('Image Width x Heigth:', self.height, self.width)
-        print('Vector Info: (ID, horizontal_factor, vertical_factor, dqt_id)')
-        for vector in self.vector_info:
+        print('Table ID: (Vector ID, DQT ID)')
+        for vector in self.dqt_map:
+            print(vector)
+        print('Table ID: (Vector ID, Horizontal Factor, Vertical Factor)')
+        for vector in self.factor:
             print(vector)
 
 class SOF2:
@@ -253,13 +258,13 @@ class SOS:
         _ = segment[0]  # marker
         self.length = unpack('>H', bytes(segment[1:3]))[0]
         self.vector_count = unpack('B', bytes(segment[3:4]))[0]
-        self.vector_info = []
+        self.dht_map = []
         for count in range(self.vector_count):
             vector_id = segment[4 + count * 2]
             dht_id = segment[5 + count * 2]
             ac = dht_id & 0x0F
             dc = dht_id >> 4
-            self.vector_info.append((vector_id, dc, ac))
+            self.dht_map.append((vector_id, dc, ac))
         self.thumbnail_spectrum_start = segment[4 + self.vector_count * 2]
         self.thumbnail_spectrum_end = segment[5 + self.vector_count * 2]
         self.thumbnail_spectrum_select = segment[6 + self.vector_count * 2]
@@ -272,8 +277,8 @@ class SOS:
     def print(self):
         print(f'===== SOS =====')
         print('Thumbnail Spectrum Select:', self.thumbnail_spectrum_select)
-        print('Vector Info: (ID, DC, AC)')
-        for vector in self.vector_info:
+        print('Table ID: (Vector ID, DC, AC)')
+        for vector in self.dht_map:
             print(vector)
 
 class COM:
@@ -302,12 +307,20 @@ class Frame:
     def append(self, data):
         self.data.append(data)
 
-    def decode_huffman(self, sos: SOS, dht_list: list[DHT]):
-        print(f'Frame Counts: {len(self.data)}')
-        sos.print()
+    def config(self, width, height, factor):
+        self.width = width
+        self.height = height
+        self.factor = factor
+        print(f'Frame Config, Width: {width}, Height: {height}, Factor: {factor}')
 
-    def decode_quantization(self, sof0: SOF0, dqt_list: list[DQT]):
-        sof0.print()
+    def decode_huffman(self, dht_map, dht_list: list[DHT]):
+        print(f'Frame Counts: {len(self.data)}')
+        print('Table ID: (Vector ID, DC, AC)')
+        for vector in dht_map:
+            print(vector)
+
+    def decode_quantization(self, dqt_list: list[DQT]):
+        pass
 
 class Jpeg:
     def read_segments(content: bytes):
@@ -361,13 +374,13 @@ class Jpeg:
                 self.sos = SOS(seg)
                 self.frame.append(seg[1 + self.sos.length:])
             elif seg[0] == 0xD0 \
-                or seg[0] == 0xD1 \
-                or seg[0] == 0xD2 \
-                or seg[0] == 0xD3 \
-                or seg[0] == 0xD4 \
-                or seg[0] == 0xD5 \
-                or seg[0] == 0xD6 \
-                or seg[0] == 0xD7:
+                    or seg[0] == 0xD1 \
+                    or seg[0] == 0xD2 \
+                    or seg[0] == 0xD3 \
+                    or seg[0] == 0xD4 \
+                    or seg[0] == 0xD5 \
+                    or seg[0] == 0xD6 \
+                    or seg[0] == 0xD7:
                 self.frame.append(seg[1:])
             else:
                 print('===== Unknown Segment:', hex(seg[0]), '=====')
@@ -378,15 +391,16 @@ class Jpeg:
             content = f.read()
         segments = Jpeg.read_segments(content)
         self._parse_segment(segments)
+        self.frame.config(self.sof0.width, self.sof0.height, self.sof0.factor)
         # Decode
-        self.frame.decode_huffman(self.sos, self.dht_list)
+        self.frame.decode_huffman(self.sos.dht_map, self.dht_list)
         # Diff
-        # self.frame.decode_quantization(self.sof0, self.dqt_list)
+        self.frame.decode_quantization(self.dqt_list)
         # zig-zag
         # IDCT
         # YCrCb to RGB
 
 
 if __name__ == '__main__':
-    jpeg = Jpeg(f'./img/suy.jpeg')
+    jpeg = Jpeg(f'./img/suey.jpg')
 
