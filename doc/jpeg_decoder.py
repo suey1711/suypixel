@@ -310,7 +310,7 @@ class Frame:
         sof0.print()
 
 class Jpeg:
-    def _read_segments(content: bytes):
+    def read_segments(content: bytes):
         segments = []
         segment = []
         flag = False
@@ -336,20 +336,11 @@ class Jpeg:
                     segments.append(segment)
                     segment = [byte]
         return segments
-    def _read_file(path: str):
-        with open(path, 'rb') as f:
-            content = f.read()
-        segments = Jpeg._read_segments(content)
-        return segments
-    def __init__(self, path: str) -> None:
-        segments = Jpeg._read_file(path)
+    def _parse_segment(self, segments: list):
         self.dht_list = []
         self.dqt_list = []
-        self.frame = Frame()
-        # 判断文件完整性
         SOI(segments[0])
         EOI(segments[-1])
-        # 读取图片参数
         for seg in segments[1: -1]:
             if seg[0] == 0xE0:
                 self.app0 = APP0(seg)
@@ -381,12 +372,20 @@ class Jpeg:
             else:
                 print('===== Unknown Segment:', hex(seg[0]), '=====')
 
+    def __init__(self, path: str) -> None:
+        self.frame = Frame()
+        with open(path, 'rb') as f:
+            content = f.read()
+        segments = Jpeg.read_segments(content)
+        self._parse_segment(segments)
+        # Decode
         self.frame.decode_huffman(self.sos, self.dht_list)
+        # Diff
         # self.frame.decode_quantization(self.sof0, self.dqt_list)
-        # 读取文件数据
-        # for seg in segments:
-        #     print(hex(seg[0]), len(seg))
-        # print(len(segments))
+        # zig-zag
+        # IDCT
+        # YCrCb to RGB
+
 
 if __name__ == '__main__':
     jpeg = Jpeg(f'./img/suy.jpeg')
