@@ -203,9 +203,12 @@ class DHT:
 
         if self.length != 19 + len(self.code_lens):
             raise ValueError(f'DHT Length Error, Expect({self.length}), Read({19 + len(self.code_lens)})')
-        self.codes = DHT._generate_codes(self.counts)
+        self.codes = DHT.generate_codes(self.counts)
+        self.table = []
+        for index in range(len(self.code_lens)):
+            self.table.append((index, self.code_lens[index], self.codes[index], self.weights[index]))
 
-    def _generate_codes(counts: list) -> list:
+    def generate_codes(counts: list) -> list:
         deep = 0
         cur = 0
         codes = []
@@ -341,25 +344,31 @@ class CodedUnit:
 class Frame:
     def __init__(self) -> None:
         self.data = []
+        self.huffman_table_direct = []
+        self.huffman_table_alternate = []
         self.segment = 0
         self.index = 0
         self.offset = 0
     def append(self, data):
         self.data.append(data)
-
-    def config(self, width, height, factor):
+    def add_huffman_table_direct(self, table: list):
+        self.huffman_table_direct.append(table)
+    def add_huffman_table_alternate(self, table: list):
+        self.huffman_table_alternate.append(table)
+    def config(self, width, height, factor, dqt_map, dht_map):
         self.width = width
         self.height = height
         self.factor = factor
-        print(f'Frame Config, Width: {width}, Height: {height}, Factor: {factor}')
+        self.dqt_map = dqt_map
+        self.dht_map = dht_map
 
-    def decode_huffman(self, dht_map, dht_list: list[DHT]):
+    def decode_huffman(self):
         print(f'Frame Counts: {len(self.data)}')
-        print('Table ID: (Vector ID, DC, AC)')
-        for vector in dht_map:
+        print('=== DHT MAP ===\n(ID, DC, AC)')
+        for vector in self.dht_map:
             print(vector)
 
-    def decode_quantization(self, dqt_list: list[DQT]):
+    def decode_quantization(self):
         pass
 
 class Jpeg:
@@ -390,8 +399,8 @@ class Jpeg:
                     segment = [byte]
         return segments
     def _parse_segments(self, segments: list):
-        self.dht_list = []
-        self.dqt_list = []
+        self.dht_list: list[DHT] = []
+        self.dqt_list: list[DQT] = []
         SOI(segments[0])
         EOI(segments[-1])
         for seg in segments[1: -1]:
@@ -399,8 +408,6 @@ class Jpeg:
                 self.app0 = APP0(seg)
             elif seg[0] == 0xC0:
                 self.sof0 = SOF0(seg)
-            elif seg[0] == 0xC2:
-                self.sof2 = SOF2(seg)
             elif seg[0] == 0xC4:
                 # 哈夫曼表可以重复出现（一般出现4次）
                 self.dht_list.append(DHT(seg))
@@ -431,11 +438,19 @@ class Jpeg:
             content = f.read()
         segments = Jpeg.read_segments(content)
         self._parse_segments(segments)
-        self.frame.config(self.sof0.width, self.sof0.height, self.sof0.factor)
+        self.frame.config(self.sof0.width, self.sof0.height
+                          , self.sof0.factor
+                          , self.sof0.dqt_map
+                          , self.sos.dht_map)
+        for dht in self.dht_list:
+            if dht.table_type is DHT.TableType.DC:
+                self.frame.add_huffman_table_direct(dht.table)
+            else:
+                self.frame.add_huffman_table_alternate(dht.table)
         # Decode
-        self.frame.decode_huffman(self.sos.dht_map, self.dht_list)
+        self.frame.decode_huffman()
         # Diff
-        self.frame.decode_quantization(self.dqt_list)
+        self.frame.decode_quantization()
         # zig-zag
         # IDCT
         # YCrCb to RGB
