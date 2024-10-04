@@ -21,7 +21,6 @@ class BiCompression(Enum):
 
 
 # Read
-
 def read_header(f: BufferedReader):
     bfType = f.read(2)                      # 文件类型
     bfSize = unpack('<i', f.read(4))[0]     # 文件大小

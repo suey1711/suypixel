@@ -277,6 +277,18 @@ class COM:
     def __init__(self, segment: bytes) -> None:
         print('COM Len:', len(segment))
 
+class DataUnit:
+    # 直流哈夫曼表权值（共8位）：
+    #   表示该直流分量值的二进制位数，也就是接下来需要读入的位数。
+    # 交流哈夫曼表权值（共8位）：
+    #   高4位表示当前数值前面有多少个连续的零
+    #   低4位表示该交流分量数值的二进制位数
+    def __init__(self) -> None:
+        self.data = [0] * 64    # 8 * 8
+
+class CodedUnit:
+    pass
+
 class Frame:
     def __init__(self) -> None:
         self.data = []
