@@ -296,8 +296,18 @@ class CodedUnit:
 class Frame:
     def __init__(self) -> None:
         self.data = []
+        self.segment = 0
+        self.index = 0
+        self.offset = 0
     def append(self, data):
         self.data.append(data)
+
+    def decode_huffman(self, sos: SOS, dht_list: list[DHT]):
+        print(f'Frame Counts: {len(self.data)}')
+        sos.print()
+
+    def decode_quantization(self, sof0: SOF0, dqt_list: list[DQT]):
+        sof0.print()
 
 class Jpeg:
     def _read_segments(content: bytes):
@@ -333,8 +343,8 @@ class Jpeg:
         return segments
     def __init__(self, path: str) -> None:
         segments = Jpeg._read_file(path)
-        self.dht = []
-        self.dqt = []
+        self.dht_list = []
+        self.dqt_list = []
         self.frame = Frame()
         # 判断文件完整性
         SOI(segments[0])
@@ -349,9 +359,9 @@ class Jpeg:
                 self.sof2 = SOF2(seg)
             elif seg[0] == 0xC4:
                 # 哈夫曼表可以重复出现（一般出现4次）
-                self.dht.append(DHT(seg))
+                self.dht_list.append(DHT(seg))
             elif seg[0] == 0xDB:
-                self.dqt.append(DQT(seg))
+                self.dqt_list.append(DQT(seg))
             elif seg[0] == 0xDD:
                 self.dri = DRI(seg)
             elif seg[0] == 0xFE:
@@ -370,9 +380,9 @@ class Jpeg:
                 self.frame.append(seg[1:])
             else:
                 print('===== Unknown Segment:', hex(seg[0]), '=====')
-        print(f'Frame Counts: {len(self.frame.data)}')
-        self.sof0.print()
-        self.sos.print()
+
+        self.frame.decode_huffman(self.sos, self.dht_list)
+        # self.frame.decode_quantization(self.sof0, self.dqt_list)
         # 读取文件数据
         # for seg in segments:
         #     print(hex(seg[0]), len(seg))
