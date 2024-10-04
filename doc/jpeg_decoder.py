@@ -1,16 +1,61 @@
 # Jpeg Segments
 # Abbr  Marker  Name                        Describe
+#   ----- 非层次哈夫曼编码 -----
+# SOF0  0xFFC0  Start of Frame              Baseline DCT-based
+# SOF1  0xFFC1  Start of Frame              扩展顺序离散余弦变换
+# SOF2  0xFFC2  Start of Frame              Progressive DCT-based
+# SOF3  0xFFC3  Start of Frame              空间顺序无损
+#   ----- 层次哈夫曼编码 -----
+# SOF5  0xFFC5  Start of Frame              差分离散余弦变换
+# SOF6  0xFFC6  Start of Frame              差分层次离散余弦变换
+# SOF7  0xFFC7  Start of Frame              差分空间无损
+#   ----- 非层次算术编码 -----
+# SOF8  0xFFC8  Start of Frame              为JPEG扩展保留
+# SOF9  0xFFC9  Start of Frame              扩展顺序离散余弦变换
+# SOF10 0xFFCA  Start of Frame              递进离散余弦变换
+# SOF11 0xFFCB  Start of Frame              空间顺序无损
+#   ----- 层次算术编码 -----
+# SOF13 0xFFCD  Start of Frame              差分离散余弦变换
+# SOF14 0xFFCE  Start of Frame              差分层次离散余弦变换
+# SOF15 0xFFCF  Start of Frame              差分空间无损
+#   ----- - -----
+# DHT   0xFFC4  Define Huffman Tables       定义哈夫曼树表
+# DAC   0xFFCC  Define Arithmetic Tables    定义算数编码表
+#   ----- 复位 -----
+# RST0  0xFFD0  Restart                     差分编码累计复位
+# RST1  0xFFD1  Restart                     差分编码累计复位
+# RST2  0xFFD2  Restart                     差分编码累计复位
+# RST3  0xFFD3  Restart                     差分编码累计复位
+# RST4  0xFFD4  Restart                     差分编码累计复位
+# RST5  0xFFD5  Restart                     差分编码累计复位
+# RST6  0xFFD6  Restart                     差分编码累计复位
+# RST7  0xFFD7  Restart                     差分编码累计复位
+#   ----- 文件 -----
 # SOI   0xFFD8  Start of Image              文件开始
-# SOF0  0xFFC0  Baseline DCT-based JPEG
-# SOF2  0xFFC2  Progressive DCT-based JPEG
-# DHT   0xFFC4  Define Huffman Tables
-# DQT   0xFFDB  Define Quantization Table
-# DRI   0xFFDD  Define Restart Interval     定义RSTn的MCU间隔数N
-# SOS   0xFFDA  Start of Scan               图像数据开始
-# RSTn  0xFFDn  Restart                     每间隔N个MCU就会有一个RST0～7循环
-# APPn  0xFFEn  Application-specific        Exif JPEG使用APP1, JFIF JPEG使用APP0
-# COM   0xFFFE  Comment                     注释内容
 # EOI   0xFFD9  End of Image                文件结束
+# SOS   0xFFDA  Start of Scan               图像数据开始
+#   ----- - -----
+# DQT   0xFFDB  Define Quantization Table
+# DNL   0xFFDC                              定义线数
+# DRI   0xFFDD  Define Restart Interval     定义差分编码累计复位的间隔
+# DHP   0xFFDE                              定义层次级数
+# EXP   0xFFDF                              展开参考图像
+#   ----- 应用程序 -----
+# APP0  0xFFE0  Application Specific        JFIF JPEG
+# APP1  0xFFE1  Application Specific        Exif JPEG
+# ...   ...
+# APP15 0xFFFD                              为应用程序保留，共15个
+#   ----- JPEG -----
+# JPG0  0xFFF0
+# ...   ...
+# JPG13 0xFFFD                              为JPEG扩展保留，共14个
+#   ----- - -----
+# COM   0xFFFE  Comment                     注释内容
+# TEM   0xFF01                              算术编码中作临时之用
+#   ----- 保留 -----
+# RES   0xFF02
+# ...   ...
+# RES   0xFFBF                              保留，共189个
 
 from enum import Enum
 from struct import unpack
@@ -125,11 +170,6 @@ class SOF0:
         print('Table ID: (Vector ID, Horizontal Factor, Vertical Factor)')
         for vector in self.factor:
             print(vector)
-
-class SOF2:
-    'Start of Frame2 Progressive DCT-based JPEG'
-    def __init__(self, segment: bytes) -> None:
-        print('SOF2 Len:', len(segment))
 
 class DHT:
     class TableType(Enum):
