@@ -349,7 +349,7 @@ class Jpeg:
                     segments.append(segment)
                     segment = [byte]
         return segments
-    def _parse_segment(self, segments: list):
+    def _parse_segments(self, segments: list):
         self.dht_list = []
         self.dqt_list = []
         SOI(segments[0])
@@ -390,7 +390,7 @@ class Jpeg:
         with open(path, 'rb') as f:
             content = f.read()
         segments = Jpeg.read_segments(content)
-        self._parse_segment(segments)
+        self._parse_segments(segments)
         self.frame.config(self.sof0.width, self.sof0.height, self.sof0.factor)
         # Decode
         self.frame.decode_huffman(self.sos.dht_map, self.dht_list)
