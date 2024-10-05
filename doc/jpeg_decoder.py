@@ -380,12 +380,10 @@ class Frame:
             print(vector)
 
         class State(Enum):
-            ReadDCCode = 0
-            ReadDCData = 1
-            ReadACCode = 2
-            ReadACData = 3
+            ReadCode = 0
+            ReadData = 1
 
-        state = State.ReadDCCode
+        state = State.ReadCode
         code = ''
         length = 0
         weight = 0
@@ -396,25 +394,25 @@ class Frame:
                     value = (byte >> offset) & 0x01
                     print(value)
                     match state:
-                        case State.ReadDCCode:
+                        case State.ReadCode:
                             code += str(value)
                             if len(code) > 16:
                                 raise ValueError('Decode Huffman Error, ReadCode Length > 16')
                             index = self.dht_map[self.vector_index()][1]
-                            for huffman_code in self.huffman_table_direct[index]:
-                                if code == huffman_code[2]:
+                            for huffman_table in self.huffman_table_direct[index]:
+                                if code == huffman_table[2]:
                                     code = ''
-                                    weight = huffman_code[3]
+                                    weight = huffman_table[3]
                                     length = 0
                                     data = 0
-                                    state = State.ReadDCData
-                        case State.ReadDCData:
+                                    state = State.ReadData
+                        case State.ReadData:
                             data = (data << 1) | value
                             length += 1
-                            if length < weight:
-                                pass
-                            else:
+                            if length >= weight:
+                                state = State.ReadCode
                                 print(bin(data))
+
                 break
 
     def decode_quantization(self):
