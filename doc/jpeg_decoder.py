@@ -330,12 +330,21 @@ class COM:
         print('COM Len:', len(segment))
 
 class DataUnit:
-    # 直流哈夫曼表权值（共8位）：
-    #   表示该直流分量值的二进制位数，也就是接下来需要读入的位数。
-    # 交流哈夫曼表权值（共8位）：
-    #   高4位表示当前数值前面有多少个连续的零
-    #   低4位表示该交流分量数值的二进制位数
     def __init__(self) -> None:
+        self.clear()
+    def push(self, value):
+        self.data[self.index] = value
+        self.index += 1
+    def skip(self, count):
+        self.index += count
+    def is_complete(self):
+        if self.index > 64:
+            raise ValueError('DataUnit Length > 64')
+        return self.index == 64
+    def is_empty(self):
+        return self.index == 0
+    def clear(self):
+        self.index = 0
         self.data = [0] * 64    # 8 * 8
 
 class CodedUnit:
@@ -345,6 +354,7 @@ class Frame:
     def __init__(self) -> None:
         self.data = []
         self.units = []
+        self.current_unit = DataUnit()
         self.huffman_table_direct = []
         self.huffman_table_alternate = []
     def append(self, data):
@@ -360,18 +370,43 @@ class Frame:
         self.dqt_map = dqt_map
         self.dht_map = dht_map
 
-    def vector_index(self):
+    def get_huffman_table(self):
+        # Get Vector Index
         if self.factor == [(1, 2, 2), (2, 1, 1), (3, 1, 1)]:
             if len(self.units) % 5 == 0:
-                return 2
+                index = 2
             elif len(self.units) % 4 == 0:
-                return 1
+                index = 1
             else:
-                return 0
+                index = 0
         elif self.factor == [(1, 1, 1), (2, 1, 1), (3, 1, 1)]:
-            return len(self.units) % 3
+            index = len(self.units) % 3
         else:
             raise ValueError('Decode Huffman Error, Unknown Vector Factor')
+
+        if self.current_unit.is_empty():    # DC
+            return self.huffman_table_direct[self.dht_map[index][1]]
+        else:                               # AC
+            return self.huffman_table_alternate[self.dht_map[index][2]]
+
+
+    def push_unit_data(self, value):
+        # 直流哈夫曼表权值（共8位）：
+        #   表示该直流分量值的二进制位数，也就是接下来需要读入的位数。
+        # 交流哈夫曼表权值（共8位）：
+        #   高4位表示当前数值前面有多少个连续的零
+        #   低4位表示该交流分量数值的二进制位数
+        if self.current_unit.is_empty():
+            self.current_unit.push(value)
+        else:
+            count = value >> 4
+            value = value & 0x0F
+            self.current_unit.skip(count)
+            self.current_unit.push(value)
+
+        if self.current_unit.is_complete():
+            self.units.append(self.current_unit)
+            self.current_unit.clear()
 
     def decode_huffman(self):
         print(f'Frame Counts: {len(self.data)}')
@@ -392,17 +427,16 @@ class Frame:
             for byte in segment:
                 for offset in range(8):
                     value = (byte >> offset) & 0x01
-                    print(value)
                     match state:
                         case State.ReadCode:
                             code += str(value)
                             if len(code) > 16:
                                 raise ValueError('Decode Huffman Error, ReadCode Length > 16')
-                            index = self.dht_map[self.vector_index()][1]
-                            for huffman_table in self.huffman_table_direct[index]:
-                                if code == huffman_table[2]:
+                            huffman_table = self.get_huffman_table()
+                            for huffman_entry in huffman_table:
+                                if code == huffman_entry[2]:
                                     code = ''
-                                    weight = huffman_table[3]
+                                    weight = huffman_entry[3]
                                     length = 0
                                     data = 0
                                     state = State.ReadData
@@ -411,8 +445,7 @@ class Frame:
                             length += 1
                             if length >= weight:
                                 state = State.ReadCode
-                                print(bin(data))
-
+                                self.push_unit_data(data)
                 break
 
     def decode_quantization(self):
