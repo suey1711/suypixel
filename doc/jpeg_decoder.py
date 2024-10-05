@@ -373,20 +373,23 @@ class Frame:
     def get_huffman_table(self):
         # Get Vector Index
         if self.factor == [(1, 2, 2), (2, 1, 1), (3, 1, 1)]:
-            if len(self.units) % 5 == 0:
-                index = 2
-            elif len(self.units) % 4 == 0:
-                index = 1
-            else:
-                index = 0
+            match len(self.units) % 6:
+                case 5:
+                    index = 2
+                case 4:
+                    index = 1
+                case _:
+                    index = 0
+
         elif self.factor == [(1, 1, 1), (2, 1, 1), (3, 1, 1)]:
             index = len(self.units) % 3
         else:
             raise ValueError('Decode Huffman Error, Unknown Vector Factor')
-
         if self.current_unit.is_empty():    # DC
+            print('DC', index, self.dht_map[index][1])
             return self.huffman_table_direct[self.dht_map[index][1]]
         else:                               # AC
+            print('AC', index, self.dht_map[index][2])
             return self.huffman_table_alternate[self.dht_map[index][2]]
 
 
@@ -405,7 +408,8 @@ class Frame:
             self.current_unit.push(value)
 
         if self.current_unit.is_complete():
-            self.units.append(self.current_unit)
+            print('complete')
+            self.units.append(self.current_unit.data.copy())
             self.current_unit.clear()
 
     def decode_huffman(self):
@@ -440,13 +444,14 @@ class Frame:
                                     length = 0
                                     data = 0
                                     state = State.ReadData
+                                    print('!!!', weight)
                         case State.ReadData:
                             data = (data << 1) | value
+                            print(data)
                             length += 1
                             if length >= weight:
                                 state = State.ReadCode
                                 self.push_unit_data(data)
-                break
 
     def decode_quantization(self):
         pass
@@ -537,5 +542,5 @@ class Jpeg:
 
 
 if __name__ == '__main__':
-    jpeg = Jpeg(f'./img/suy.jpg')
+    jpeg = Jpeg(f'./img/suy.jpeg')
 
