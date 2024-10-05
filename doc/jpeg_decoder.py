@@ -391,6 +391,9 @@ class Frame:
         length = 0
         width = 0
         data = 0
+        print(self.huffman_table_direct[0])
+        print('\n')
+        print(self.huffman_table_direct[1])
         for segment in self.data:
             for byte in segment:
                 for offset in range(8):
@@ -432,12 +435,31 @@ class Frame:
                                         data_unit = []
                                         code = ''
                                         state = State.DCCode
-                                        continue
-                                    width = huffman_entry[3] & 0x0F
-                                    pad = huffman_entry[3] >> 4
-                                    state = State.ACData
-                                    for _ in range(pad):
-                                        data_unit.append(0)
+                                    # elif huffman_entry[3] == 0xF0:  # ！！！
+                                    #     for _ in range(16):
+                                    #         data_unit.append(0)
+                                    #     if len(data_unit) == 64:
+                                    #         print(current)
+                                    #         self.push_unit(data_unit)
+                                    #         data_unit = []
+                                    #         code = ''
+                                    #         state = State.DCCode
+                                    else:
+                                        width = huffman_entry[3] & 0x0F
+                                        pad = huffman_entry[3] >> 4
+                                        for _ in range(pad):
+                                            data_unit.append(0)
+                                        if len(data_unit) == 64:
+                                            print(current)
+                                            self.push_unit(data_unit)
+                                            data_unit = []
+                                            code = ''
+                                            state = State.DCCode
+                                        elif width == 0:
+                                            code = ''
+                                            state = State.ACCode
+                                        else:
+                                            state = State.ACData
                         case State.ACData:
                             data = (data << 1) | value
                             length += 1
