@@ -344,11 +344,9 @@ class CodedUnit:
 class Frame:
     def __init__(self) -> None:
         self.data = []
+        self.units = []
         self.huffman_table_direct = []
         self.huffman_table_alternate = []
-        self.segment = 0
-        self.index = 0
-        self.offset = 0
     def append(self, data):
         self.data.append(data)
     def add_huffman_table_direct(self, table: list):
@@ -362,11 +360,62 @@ class Frame:
         self.dqt_map = dqt_map
         self.dht_map = dht_map
 
+    def vector_index(self):
+        if self.factor == [(1, 2, 2), (2, 1, 1), (3, 1, 1)]:
+            if len(self.units) % 5 == 0:
+                return 2
+            elif len(self.units) % 4 == 0:
+                return 1
+            else:
+                return 0
+        elif self.factor == [(1, 1, 1), (2, 1, 1), (3, 1, 1)]:
+            return len(self.units) % 3
+        else:
+            raise ValueError('Decode Huffman Error, Unknown Vector Factor')
+
     def decode_huffman(self):
         print(f'Frame Counts: {len(self.data)}')
         print('=== DHT MAP ===\n(ID, DC, AC)')
         for vector in self.dht_map:
             print(vector)
+
+        class State(Enum):
+            ReadDCCode = 0
+            ReadDCData = 1
+            ReadACCode = 2
+            ReadACData = 3
+
+        state = State.ReadDCCode
+        code = ''
+        length = 0
+        weight = 0
+        data = 0
+        for segment in self.data:
+            for byte in segment:
+                for offset in range(8):
+                    value = (byte >> offset) & 0x01
+                    print(value)
+                    match state:
+                        case State.ReadDCCode:
+                            code += str(value)
+                            if len(code) > 16:
+                                raise ValueError('Decode Huffman Error, ReadCode Length > 16')
+                            index = self.dht_map[self.vector_index()][1]
+                            for huffman_code in self.huffman_table_direct[index]:
+                                if code == huffman_code[2]:
+                                    code = ''
+                                    weight = huffman_code[3]
+                                    length = 0
+                                    data = 0
+                                    state = State.ReadDCData
+                        case State.ReadDCData:
+                            data = (data << 1) | value
+                            length += 1
+                            if length < weight:
+                                pass
+                            else:
+                                print(bin(data))
+                break
 
     def decode_quantization(self):
         pass
@@ -457,5 +506,5 @@ class Jpeg:
 
 
 if __name__ == '__main__':
-    jpeg = Jpeg(f'./img/suey.jpg')
+    jpeg = Jpeg(f'./img/suy.jpg')
 
