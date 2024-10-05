@@ -329,32 +329,10 @@ class COM:
     def __init__(self, segment: bytes) -> None:
         print('COM Len:', len(segment))
 
-class DataUnit:
-    def __init__(self) -> None:
-        self.clear()
-    def push(self, value):
-        self.data[self.index] = value
-        self.index += 1
-    def skip(self, count):
-        self.index += count
-    def is_complete(self):
-        if self.index > 64:
-            raise ValueError('DataUnit Length > 64')
-        return self.index == 64
-    def is_empty(self):
-        return self.index == 0
-    def clear(self):
-        self.index = 0
-        self.data = [0] * 64    # 8 * 8
-
-class CodedUnit:
-    pass
-
 class Frame:
     def __init__(self) -> None:
         self.data = []
         self.units = []
-        self.current_unit = DataUnit()
         self.huffman_table_direct = []
         self.huffman_table_alternate = []
     def append(self, data):
@@ -370,7 +348,7 @@ class Frame:
         self.dqt_map = dqt_map
         self.dht_map = dht_map
 
-    def get_huffman_table(self):
+    def current_vector_index(self):
         # Get Vector Index
         if self.factor == [(1, 2, 2), (2, 1, 1), (3, 1, 1)]:
             match len(self.units) % 6:
@@ -385,74 +363,96 @@ class Frame:
             index = len(self.units) % 3
         else:
             raise ValueError('Decode Huffman Error, Unknown Vector Factor')
-        if self.current_unit.is_empty():    # DC
-            print('DC', index, self.dht_map[index][1])
-            return self.huffman_table_direct[self.dht_map[index][1]]
-        else:                               # AC
-            print('AC', index, self.dht_map[index][2])
-            return self.huffman_table_alternate[self.dht_map[index][2]]
+        return index
 
+    def push_unit(self, unit):
+        self.units.append(unit)
 
-    def push_unit_data(self, value):
+    def decode_huffman(self):
+        print(f'Frame Counts: {len(self.data)}')
+        print('=== DHT MAP ===\n(ID, DC, AC)')
+        print(self.factor)
+        for vector in self.dht_map:
+            print(vector)
+
+        class State(Enum):
+            DCCode = 0
+            DCData = 1
+            ACCode = 2
+            ACData = 3
         # 直流哈夫曼表权值（共8位）：
         #   表示该直流分量值的二进制位数，也就是接下来需要读入的位数。
         # 交流哈夫曼表权值（共8位）：
         #   高4位表示当前数值前面有多少个连续的零
         #   低4位表示该交流分量数值的二进制位数
-        if self.current_unit.is_empty():
-            self.current_unit.push(value)
-        else:
-            count = value >> 4
-            value = value & 0x0F
-            self.current_unit.skip(count)
-            self.current_unit.push(value)
-
-        if self.current_unit.is_complete():
-            print('complete')
-            self.units.append(self.current_unit.data.copy())
-            self.current_unit.clear()
-
-    def decode_huffman(self):
-        print(f'Frame Counts: {len(self.data)}')
-        print('=== DHT MAP ===\n(ID, DC, AC)')
-        for vector in self.dht_map:
-            print(vector)
-
-        class State(Enum):
-            ReadCode = 0
-            ReadData = 1
-
-        state = State.ReadCode
+        state = State.DCCode
+        data_unit = []
         code = ''
         length = 0
-        weight = 0
+        width = 0
         data = 0
         for segment in self.data:
             for byte in segment:
                 for offset in range(8):
                     value = (byte >> offset) & 0x01
                     match state:
-                        case State.ReadCode:
+                        case State.DCCode:
                             code += str(value)
                             if len(code) > 16:
                                 raise ValueError('Decode Huffman Error, ReadCode Length > 16')
-                            huffman_table = self.get_huffman_table()
+                            current = self.current_vector_index()
+                            huffman_table = self.huffman_table_direct[self.dht_map[current][1]]
                             for huffman_entry in huffman_table:
                                 if code == huffman_entry[2]:
                                     code = ''
-                                    weight = huffman_entry[3]
                                     length = 0
                                     data = 0
-                                    state = State.ReadData
-                                    print('!!!', weight)
-                        case State.ReadData:
+                                    width = huffman_entry[3]
+                                    state = State.DCData
+                        case State.DCData:
                             data = (data << 1) | value
-                            print(data)
                             length += 1
-                            if length >= weight:
-                                state = State.ReadCode
-                                self.push_unit_data(data)
-
+                            if length >= width:
+                                data_unit.append(data)
+                                state = State.ACCode
+                        case State.ACCode:
+                            code += str(value)
+                            if len(code) > 16:
+                                raise ValueError('Decode Huffman Error, ReadCode Length > 16')
+                            current = self.current_vector_index()
+                            huffman_table = self.huffman_table_alternate[self.dht_map[current][2]]
+                            for huffman_entry in huffman_table:
+                                if code == huffman_entry[2]:
+                                    code = ''
+                                    length = 0
+                                    data = 0
+                                    if huffman_entry[3] == 0:
+                                        print(current)
+                                        self.push_unit(data_unit)
+                                        data_unit = []
+                                        code = ''
+                                        state = State.DCCode
+                                        continue
+                                    width = huffman_entry[3] & 0x0F
+                                    pad = huffman_entry[3] >> 4
+                                    state = State.ACData
+                                    for _ in range(pad):
+                                        data_unit.append(0)
+                        case State.ACData:
+                            data = (data << 1) | value
+                            length += 1
+                            if length >= width:
+                                data_unit.append(data)
+                                if len(data_unit) > 64:
+                                    raise ValueError('DataUnit Length > 64')
+                                if len(data_unit) == 64:
+                                    print(current)
+                                    self.push_unit(data_unit)
+                                    data_unit = []
+                                    code = ''
+                                    state = State.DCCode
+                                else:
+                                    state = State.ACCode
     def decode_quantization(self):
         pass
 
