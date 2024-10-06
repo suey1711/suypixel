@@ -372,8 +372,6 @@ class Frame:
         print(f'Frame Counts: {len(self.data)}')
         print('=== DHT MAP ===\n(ID, DC, AC)')
         print(self.factor)
-        for vector in self.dht_map:
-            print(vector)
 
         class State(Enum):
             DCCode = 0
@@ -385,19 +383,17 @@ class Frame:
         # 交流哈夫曼表权值（共8位）：
         #   高4位表示当前数值前面有多少个连续的零
         #   低4位表示该交流分量数值的二进制位数
-        state = State.DCCode
-        data_unit = []
-        code = ''
-        length = 0
-        width = 0
-        data = 0
-        print(self.huffman_table_direct[0])
-        print('\n')
-        print(self.huffman_table_direct[1])
         for segment in self.data:
+            data_unit = []
+            state = State.DCCode
+            code = ''
+            width = 0
+            length = 0
+            data = 0
+            dc_base = 0
             for byte in segment:
                 for offset in range(8):
-                    value = (byte >> offset) & 0x01
+                    value = (byte >> (7 - offset)) & 0x01
                     match state:
                         case State.DCCode:
                             code += str(value)
@@ -407,17 +403,26 @@ class Frame:
                             huffman_table = self.huffman_table_direct[self.dht_map[current][1]]
                             for huffman_entry in huffman_table:
                                 if code == huffman_entry[2]:
-                                    code = ''
-                                    length = 0
-                                    data = 0
                                     width = huffman_entry[3]
-                                    state = State.DCData
+                                    if width == 0:
+                                        data_unit.append(dc_base)
+                                        state = State.ACCode
+                                        code = ''
+                                    else:
+                                        state = State.DCData
+                                        length = 0
+                                        data = 0
+                                    break
                         case State.DCData:
                             data = (data << 1) | value
                             length += 1
                             if length >= width:
-                                data_unit.append(data)
+                                if (data & (0x01 << (width - 1))) == 0:
+                                    data = - (data | (0x01 << (width - 1)))
+                                dc_base += data
+                                data_unit.append(dc_base)
                                 state = State.ACCode
+                                code = ''
                         case State.ACCode:
                             code += str(value)
                             if len(code) > 16:
@@ -426,55 +431,53 @@ class Frame:
                             huffman_table = self.huffman_table_alternate[self.dht_map[current][2]]
                             for huffman_entry in huffman_table:
                                 if code == huffman_entry[2]:
-                                    code = ''
-                                    length = 0
-                                    data = 0
                                     if huffman_entry[3] == 0:
-                                        print(current)
+                                        for _ in range(64 - len(data_unit)):
+                                            data_unit.append(0)
                                         self.push_unit(data_unit)
+                                        state = State.DCCode
                                         data_unit = []
                                         code = ''
-                                        state = State.DCCode
-                                    # elif huffman_entry[3] == 0xF0:  # ！！！
-                                    #     for _ in range(16):
-                                    #         data_unit.append(0)
-                                    #     if len(data_unit) == 64:
-                                    #         print(current)
-                                    #         self.push_unit(data_unit)
-                                    #         data_unit = []
-                                    #         code = ''
-                                    #         state = State.DCCode
                                     else:
                                         width = huffman_entry[3] & 0x0F
                                         pad = huffman_entry[3] >> 4
                                         for _ in range(pad):
                                             data_unit.append(0)
-                                        if len(data_unit) == 64:
-                                            print(current)
-                                            self.push_unit(data_unit)
-                                            data_unit = []
-                                            code = ''
-                                            state = State.DCCode
-                                        elif width == 0:
-                                            code = ''
+                                        if width == 0:
+                                            data_unit.append(0)
                                             state = State.ACCode
+                                            code = ''
                                         else:
                                             state = State.ACData
+                                            length = 0
+                                            data = 0
+
+                                        if len(data_unit) > 64:
+                                            raise ValueError('DataUnit Length > 64 ACCode')
+                                        elif len(data_unit) == 64:
+                                            self.push_unit(data_unit)
+                                            state = State.DCCode
+                                            data_unit = []
+                                            code = ''
+                                    break
                         case State.ACData:
                             data = (data << 1) | value
                             length += 1
                             if length >= width:
+                                if (data & (0x01 << (width - 1))) == 0:
+                                    data = - (data | (0x01 << (width - 1)))
                                 data_unit.append(data)
+                                state = State.ACCode
+                                code = ''
+
                                 if len(data_unit) > 64:
-                                    raise ValueError('DataUnit Length > 64')
-                                if len(data_unit) == 64:
-                                    print(current)
+                                    raise ValueError('DataUnit Length > 64 ACData')
+                                elif len(data_unit) == 64:
                                     self.push_unit(data_unit)
+                                    state = State.DCCode
                                     data_unit = []
                                     code = ''
-                                    state = State.DCCode
-                                else:
-                                    state = State.ACCode
+
     def decode_quantization(self):
         pass
 
@@ -564,5 +567,5 @@ class Jpeg:
 
 
 if __name__ == '__main__':
-    jpeg = Jpeg(f'./img/suy.jpeg')
+    jpeg = Jpeg(f'./img/suy.jpg')
 
