@@ -558,10 +558,10 @@ class Jpeg:
             else:
                 self.frame.add_huffman_table_alternate(dht.table)
         # Decode
+        # huffman and diff
         self.frame.decode_huffman()
-        # Diff
-        self.frame.decode_quantization()
         # zig-zag
+        self.frame.decode_quantization()
         # IDCT
         # YCrCb to RGB
 
