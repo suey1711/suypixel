@@ -335,18 +335,29 @@ class Frame:
         self.units = []
         self.huffman_table_direct = []
         self.huffman_table_alternate = []
+        self.quantization_table = []
     def append(self, data):
         self.data.append(data)
     def add_huffman_table_direct(self, table: list):
         self.huffman_table_direct.append(table)
     def add_huffman_table_alternate(self, table: list):
         self.huffman_table_alternate.append(table)
+    def add_quantization_table(self, table):
+        self.quantization_table.append(table)
     def config(self, width, height, factor, dqt_map, dht_map):
         self.width = width
         self.height = height
         self.factor = factor
         self.dqt_map = dqt_map
         self.dht_map = dht_map
+
+    def get_vector_order(self):
+        if self.factor == [(1, 2, 2), (2, 1, 1), (3, 1, 1)]:
+            return (0, 0, 0, 0, 1, 2)
+        elif self.factor == [(1, 1, 1), (2, 1, 1), (3, 1, 1)]:
+            return (0, 1, 2)
+        else:
+            raise ValueError('get_vector_order Error, Unknown Vector Factor')
 
     def current_vector_index(self):
         # Get Vector Index
@@ -479,7 +490,17 @@ class Frame:
                                     code = ''
 
     def decode_quantization(self):
-        pass
+        print(self.dqt_map)
+        unit_index = 0
+        vector_order = self.get_vector_order()
+        order_length = len(vector_order)
+        for unit in self.units:
+            vector_index = vector_order[unit_index % order_length]
+            table_id = self.dqt_map[vector_index][1]
+            table = self.quantization_table[table_id]
+            unit_index += 1
+            for index in range(64):
+                unit[index] *= table[index]
 
 class Jpeg:
     def read_segments(content: bytes):
@@ -557,11 +578,13 @@ class Jpeg:
                 self.frame.add_huffman_table_direct(dht.table)
             else:
                 self.frame.add_huffman_table_alternate(dht.table)
+        for dqt in self.dqt_list:
+            self.frame.add_quantization_table(dqt.table)
         # Decode
         # huffman and diff
         self.frame.decode_huffman()
-        # zig-zag
         self.frame.decode_quantization()
+        # zig-zag
         # IDCT
         # YCrCb to RGB
 
