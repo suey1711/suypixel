@@ -588,7 +588,31 @@ class Jpeg:
         # IDCT
         # YCrCb to RGB
 
+def buid_zig_matrix(width):
+    matrix = [0] * (width * width)
+    for step in range(width):
+        pre = (step + 1) * step // 2
+        for row in range(step + 1):
+            col = step - row
+            if step % 2 == 0:
+                matrix[row + col * width] = pre + row
+            else:
+                matrix[row * width + col] = pre + row
+        pre = (width * width) - 1 - pre
+        for row in range(width - step, width):
+            col = (width - step - 1) + (width - row)
+            if step % 2 == 0:
+                matrix[row + col * width] = pre + width - row
+            else:
+                matrix[row * width + col] = pre + width - row
+    return matrix
 
 if __name__ == '__main__':
-    jpeg = Jpeg(f'./img/suy.jpg')
+    width = 4
+    matrix = buid_zig_matrix(width)
+    for row in range(width):
+        for col in range(width):
+            print(matrix[row * width + col], end = '  ')
+        print('\n')
+    # jpeg = Jpeg(f'./img/suy.jpg')
 
