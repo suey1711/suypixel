@@ -583,8 +583,8 @@ class Jpeg:
         # Decode
         # huffman and diff
         self.frame.decode_huffman()
-        self.frame.decode_quantization()
         # zig-zag
+        self.frame.decode_quantization()
         # IDCT
         # YCrCb to RGB
 
