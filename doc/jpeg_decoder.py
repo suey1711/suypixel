@@ -75,8 +75,8 @@ class EOI:
 class APP0:
     class DensityUnit(Enum):
         Unknown = 0
-        Pixel_Inch = 1
-        Pixel_Cm = 2
+        Inch = 1
+        Cm = 2
     'Application-specific 0'
     # 标记代码｜｜  2 bytes 固定值：0xFFE0
     # 数据长度｜｜  2 bytes 包含自身但不包含标记代码

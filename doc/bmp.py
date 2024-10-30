@@ -19,7 +19,6 @@ class BiCompression(Enum):
     BI_JPEG = 4         # 位图含JPEG图像（仅用于打印机）
     BI_PNG = 5          # 位图含PNG图像（仅用于打印机）
 
-
 # Read
 def read_header(f: BufferedReader):
     bfType = f.read(2)                      # 文件类型
@@ -78,3 +77,4 @@ if __name__ == '__main__':
     img = PIL.Image.new('RGB', (biWidth, biHeight))
     img.putdata(pixels)
     img.show()
+
