@@ -562,7 +562,8 @@ class Jpeg:
                 self.frame.append(seg[1:])
             else:
                 print('===== Unknown Segment:', hex(seg[0]), '=====')
-
+    def build_quantization_table():
+        pass
     def __init__(self, path: str) -> None:
         self.frame = Frame()
         with open(path, 'rb') as f:
@@ -586,6 +587,7 @@ class Jpeg:
         # zig-zag
         self.frame.decode_quantization()
         # IDCT
+        zigzag = zigzag_matrix(8)
         # YCrCb to RGB
 
 def zigzag_matrix(width):
