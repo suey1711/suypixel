@@ -579,12 +579,14 @@ class Jpeg:
                 self.frame.add_huffman_table_direct(dht.table)
             else:
                 self.frame.add_huffman_table_alternate(dht.table)
+        dqt_dist = {}
         for dqt in self.dqt_list:
+            dqt_dist[dqt.id] = dqt.table
             self.frame.add_quantization_table(dqt.table)
         # Decode
         # huffman and diff
         self.frame.decode_huffman()
-        # zig-zag
+        #  zig-zag
         self.frame.decode_quantization()
         # IDCT
         zigzag = zigzag_matrix(8)
