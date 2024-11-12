@@ -562,8 +562,14 @@ class Jpeg:
                 self.frame.append(seg[1:])
             else:
                 print('===== Unknown Segment:', hex(seg[0]), '=====')
-    def build_quantization_table():
-        pass
+
+    def build_quantization_table(self):
+        dqt_dist = {}
+        for dqt in self.dqt_list:
+            dqt_dist[dqt.id] = dqt.table
+            self.frame.add_quantization_table(dqt.table)
+        return dqt_dist
+
     def __init__(self, path: str) -> None:
         self.frame = Frame()
         with open(path, 'rb') as f:
@@ -579,10 +585,7 @@ class Jpeg:
                 self.frame.add_huffman_table_direct(dht.table)
             else:
                 self.frame.add_huffman_table_alternate(dht.table)
-        dqt_dist = {}
-        for dqt in self.dqt_list:
-            dqt_dist[dqt.id] = dqt.table
-            self.frame.add_quantization_table(dqt.table)
+        dqt_dist = self.build_quantization_table()
         # Decode
         # huffman and diff
         self.frame.decode_huffman()
