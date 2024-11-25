@@ -351,13 +351,13 @@ class Frame:
         self.dqt_map = dqt_map
         self.dht_map = dht_map
 
-    def get_vector_order(self):
+    def get_mcu_order(self):
         if self.factor == [(1, 2, 2), (2, 1, 1), (3, 1, 1)]:
             return (0, 0, 0, 0, 1, 2)
         elif self.factor == [(1, 1, 1), (2, 1, 1), (3, 1, 1)]:
             return (0, 1, 2)
         else:
-            raise ValueError('get_vector_order Error, Unknown Vector Factor')
+            raise ValueError('get_mcu_order Error, Unknown Vector Factor')
 
     def current_vector_index(self):
         # Get Vector Index
@@ -492,7 +492,7 @@ class Frame:
     def decode_quantization(self):
         print(self.dqt_map)
         unit_index = 0
-        vector_order = self.get_vector_order()
+        vector_order = self.get_mcu_order()
         order_length = len(vector_order)
         for unit in self.units:
             vector_index = vector_order[unit_index % order_length]
