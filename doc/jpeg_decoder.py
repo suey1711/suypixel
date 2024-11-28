@@ -529,6 +529,7 @@ class Jpeg:
                     segments.append(segment)
                     segment = [byte]
         return segments
+
     def _parse_segments(self, segments: list):
         self.dht_list: list[DHT] = []
         self.dqt_list: list[DQT] = []
