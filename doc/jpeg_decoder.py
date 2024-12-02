@@ -623,4 +623,3 @@ if __name__ == '__main__':
             print(matrix[row * width + col], end = '  ')
         print('\n')
     # jpeg = Jpeg(f'./img/suy.jpg')
-
