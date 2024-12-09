@@ -462,7 +462,6 @@ class Frame:
                                             state = State.ACData
                                             length = 0
                                             data = 0
-
                                         if len(data_unit) > 64:
                                             raise ValueError('DataUnit Length > 64 ACCode')
                                         elif len(data_unit) == 64:
